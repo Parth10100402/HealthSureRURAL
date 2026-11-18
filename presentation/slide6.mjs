@@ -60,9 +60,9 @@ export function buildSlide6() {
   s.addText([
     { text: "VERIFIABLE PRODUCTION URLS:\n", options: { bold: true, fontSize: 10, color: C.tealDark } },
     { text: "• Patient Voice Portal: ", options: { bold: true, fontSize: 9, color: C.navy } },
-    { text: "https://healthsure-ai.vercel.app\n", options: { fontSize: 9, color: C.blue } },
+    { text: "https://healthsurerural.vercel.app (healthsurerural.vercel.com)\n", options: { fontSize: 8.5, color: C.blue } },
     { text: "• Admin/Doctor Portal: ", options: { bold: true, fontSize: 9, color: C.navy } },
-    { text: "https://healthsure-ai.vercel.app/admin\n", options: { fontSize: 9, color: C.blue } },
+    { text: "https://healthsurerural.vercel.app/admin\n", options: { fontSize: 8.5, color: C.blue } },
     { text: "• Cloud IVR Hotline: ", options: { bold: true, fontSize: 9, color: C.navy } },
     { text: "+91 09513886363  (PIN: 9214-3058-11)\n", options: { bold: true, fontSize: 9, color: C.tealPrimary } },
     { text: "• Test Credentials: ", options: { bold: true, fontSize: 9, color: C.navy } },

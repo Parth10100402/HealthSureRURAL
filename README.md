@@ -11,14 +11,14 @@
 [![Node.js](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express%20%7C%20TypeScript-339933?logo=node.js)](https://nodejs.org/)
 [![Database](https://img.shields.io/badge/Database-PostgreSQL%20%7C%20Prisma%20ORM-2D3748?logo=prisma)](https://www.prisma.io/)
 [![Deepgram](https://img.shields.io/badge/Voice%20AI-Deepgram%20Nova--3%20%2B%20Aura-13EF93?logo=deepgram)](https://deepgram.com/)
-[![Deployment](https://img.shields.io/badge/Deployed%20on-Vercel-black?logo=vercel)](https://healthsure-ai.vercel.app)
+[![Deployment](https://img.shields.io/badge/Deployed%20on-Vercel-black?logo=vercel)](https://healthsurerural.vercel.app)
 [![Tests](https://img.shields.io/badge/Verification-62%2F62%20Tests%20Passing-brightgreen)](#-automated-verification--test-suites)
 [![Repo Size](https://img.shields.io/badge/Repo%20Size-%3C%206%20MB%20(Rule%20Compliant)-success)](#-repository-compliance--submission-rules)
 [![Branch Status](https://img.shields.io/badge/Branches-1%20Single%20Branch%20(main)-blue)](#-repository-compliance--submission-rules)
 
 **An autonomous, multi-persona public healthcare platform bridging the rural healthcare divide through Agentic Voice AI, zero-internet Cloud IVR telephony, decentralized specialist outreach rotation, low-bandwidth teleconsultation, and ABDM-compliant longitudinal EHR orchestration.**
 
-[Live Web Application](https://healthsure-ai.vercel.app) • [Doctor & Admin Portal](https://healthsure-ai.vercel.app/admin) • [YouTube Video Demo](https://youtu.be/GiW4A_d7ywo) • [Cloud IVR Hotline](#-cloud-ivr-telephony-zero-internet-access) • [Demo Credentials](#-demo-credentials)
+[Live Web Application](https://healthsurerural.vercel.app) • [Doctor & Admin Portal](https://healthsurerural.vercel.app/admin) • [YouTube Video Demo](https://youtu.be/GiW4A_d7ywo) • [Cloud IVR Hotline](#-cloud-ivr-telephony-zero-internet-access) • [Demo Credentials](#-demo-credentials)
 
 </div>
 
@@ -30,7 +30,7 @@
 | :--- | :---: | :--- |
 | **Repository Size < 10 MB** | **PASS** | Entire tracked working tree is **~4.8 MB** and `.git` folder is **~2.2 MB** (Total: **~7.0 MB**, strictly compliant with the < 10 MB ceiling). |
 | **Single Branch Only** | **PASS** | Repository contains **strictly 1 branch (`main`)** both locally and on remote GitHub. Zero dangling or secondary branches. |
-| **Public GitHub Repository** | **PASS** | Publicly accessible at `https://github.com/Parth10100402/HealthSure-SIH.git`. |
+| **Public GitHub Repository** | **PASS** | Publicly accessible at `https://github.com/Parth10100402/HEALTHSURE-RURAL.git`. |
 | **Smart Dynamic Assistant** | **PASS** | Turn-based Agentic AI with entity resolution, DB tool execution, affirmative mutation guardrails, and 108 Emergency SOS triage. |
 | **Working Prototype & Demo** | **PASS** | Live Vercel deployment, working Cloud IVR telephone line, and full test suite verification. |
 
@@ -170,8 +170,8 @@ HealthSure operates seamlessly across both high-bandwidth modern web browsers an
 
 ## 🌐 Live Deployments & Verification Endpoints
 
-- **Production Patient Web Portal:** [https://healthsure-ai.vercel.app](https://healthsure-ai.vercel.app)
-- **Doctor & Administrative Desk:** [https://healthsure-ai.vercel.app/admin](https://healthsure-ai.vercel.app/admin)
+- **Production Patient Web Portal:** [https://healthsurerural.vercel.app](https://healthsurerural.vercel.app) *(Domain: [https://healthsurerural.vercel.com](https://healthsurerural.vercel.com))*
+- **Doctor & Administrative Desk:** [https://healthsurerural.vercel.app/admin](https://healthsurerural.vercel.app/admin) *(Domain: [https://healthsurerural.vercel.com/admin](https://healthsurerural.vercel.com/admin))*
 - **Toll-Free Cloud IVR Hotline:** `+91 09513886363` *(PIN: `9214-3058-11`)*
 - **YouTube Walkthrough Video:** [https://youtu.be/GiW4A_d7ywo](https://youtu.be/GiW4A_d7ywo)
 
@@ -216,8 +216,8 @@ cd backend && npm test
 
 ```bash
 # Clone Repository
-git clone https://github.com/Parth10100402/HealthSure-SIH.git
-cd HealthSure-SIH
+git clone https://github.com/Parth10100402/HEALTHSURE-RURAL.git
+cd HEALTHSURE-RURAL
 
 # Backend Setup
 cd backend

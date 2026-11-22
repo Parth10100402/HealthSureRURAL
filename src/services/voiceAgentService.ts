@@ -841,13 +841,21 @@ export class VoiceAgentService {
 
     // 1. Missing Doctor?
     if (!this.state.selectedDoctor) {
-      const dayAndTime = this.state.dateDisplay ? ` ${this.state.dateDisplay} ko` : '';
-      const timeStr = this.state.timeStr ? ` ${this.state.timeStr} par` : '';
-      const spoken = this.language === 'hi'
-        ? `Aap${dayAndTime}${timeStr} kis doctor ya speciality ke saath appointment book karna chahte hain? Jaise: Dr. Rahul Verma (General Medicine) ya Dr. Vivek Rao (Orthopedics)?`
-        : `Which doctor or speciality would you like to consult${dayAndTime}${timeStr}? For example: Dr. Rahul Verma (General Medicine) or Dr. Vivek Rao (Orthopedics)?`;
-      this.recordAgentResponse(spoken);
-      return { spokenResponse: spoken, state: this.getState() };
+      if (this.state.candidateDoctors.length > 0) {
+        const doc = this.state.candidateDoctors[0];
+        this.state.selectedDoctor = doc.name;
+        this.state.doctorId = doc.id;
+        this.state.speciality = doc.speciality;
+        this.state.facility = doc.facility || doc.hospitalName;
+      } else {
+        const dayAndTime = this.state.dateDisplay ? ` ${this.state.dateDisplay} ko` : '';
+        const timeStr = this.state.timeStr ? ` ${this.state.timeStr} par` : '';
+        const spoken = this.language === 'hi'
+          ? `Aap${dayAndTime}${timeStr} kis doctor ya speciality ke saath appointment book karna chahte hain? Jaise: Dr. Rahul Verma (General Medicine) ya Dr. Vivek Rao (Orthopedics)?`
+          : `Which doctor or speciality would you like to consult${dayAndTime}${timeStr}? For example: Dr. Rahul Verma (General Medicine) or Dr. Vivek Rao (Orthopedics)?`;
+        this.recordAgentResponse(spoken);
+        return { spokenResponse: spoken, state: this.getState() };
+      }
     }
 
     // 2. Missing Date?

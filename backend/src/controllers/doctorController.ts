@@ -184,8 +184,10 @@ export const completeConsultation = async (req: Request, res: Response, next: Ne
     } = req.body;
 
     const doc = dataStore.doctors.find((d) => d.userId === req.user?.userId || d.id === req.user?.doctorId) || dataStore.doctors[0];
-    const pat = dataStore.patients.find((p) => p.id === patientId) || dataStore.patients[0];
+
     const apt = dataStore.appointments.find((a) => a.id === appointmentId || a.appointmentId === appointmentId);
+    const pat = dataStore.patients.find((p) => p.id === (patientId || apt?.patientId)) || dataStore.patients[0];
+
 
     if (apt) {
       apt.status = 'COMPLETED';

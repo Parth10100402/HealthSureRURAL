@@ -505,7 +505,9 @@ export const sendSignal = async (req: Request, res: Response, next: NextFunction
   try {
     const rawId = String(req.params.id);
     const id = resolveCanonicalSessionId(rawId);
-    const { senderRole, type, payload } = req.body;
+    const senderRole = req.body.senderRole || req.body.sender || req.body.role;
+    const type = req.body.type;
+    const payload = req.body.payload !== undefined ? req.body.payload : (req.body.sdp || req.body.candidate || req.body);
 
     if (!senderRole || !type) {
       res.status(400).json({ success: false, message: 'Missing senderRole or type in signaling message.' });

@@ -15,6 +15,7 @@ import type { Appointment } from '../../types/patient';
 import { StatusBadge } from './StatusBadge';
 import { patientService } from '../../services/patientService';
 import { useTranslation } from '../../lib/i18n/useTranslation';
+import { mockDoctorsList } from '../../data/doctorMockData';
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -204,7 +205,9 @@ export const AppointmentBookingModal: React.FC<{
   onBooked: (apt: Appointment) => void;
 }> = ({ isOpen, onClose, onBooked }) => {
   const t = useTranslation();
+  const allSpecialties = Array.from(new Set(mockDoctorsList.map((d) => d.speciality)));
   const [speciality, setSpeciality] = useState('Cardiology');
+  const [doctorId, setDoctorId] = useState('doc-001');
   const [doctorName, setDoctorName] = useState('Dr. Ananya Mehta');
   const [facility, setFacility] = useState('District Hospital Ratnagiri');
   const [date, setDate] = useState('2026-08-28');
@@ -212,6 +215,11 @@ export const AppointmentBookingModal: React.FC<{
   const [reason, setReason] = useState('');
   const [type, setType] = useState<Appointment['type']>('in-person');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  const availableDoctors = mockDoctorsList.filter((d) => d.speciality === speciality);
+  const currentDoctor = mockDoctorsList.find((d) => d.id === doctorId) || availableDoctors[0];
+  const availableSlots = currentDoctor?.slots || ['09:30 AM', '10:30 AM', '11:30 AM', '02:00 PM'];
 
   if (!isOpen) return null;
 
@@ -221,22 +229,29 @@ export const AppointmentBookingModal: React.FC<{
       alert(t.fieldRequired);
       return;
     }
+    setBookingError(null);
     setIsSubmitting(true);
-    const created = await patientService.bookAppointment({
-      doctorName,
-      doctorQualification: 'MD / Specialist',
-      speciality,
-      facility,
-      facilityType: facility.includes('PHC') ? 'PHC' : 'District Hospital',
-      date,
-      time,
-      type,
-      reasonForVisit: reason,
-      instructions: 'Please arrive 15 minutes before scheduled slot with prior prescriptions.',
-    });
-    setIsSubmitting(false);
-    onBooked(created);
-    onClose();
+    try {
+      const created = await patientService.bookAppointment({
+        doctorId,
+        doctorName,
+        doctorQualification: currentDoctor?.qualification || 'MD / Specialist',
+        speciality,
+        facility,
+        facilityType: facility.includes('PHC') ? 'PHC' : 'District Hospital',
+        date,
+        time,
+        type,
+        reasonForVisit: reason,
+        instructions: 'Please arrive 15 minutes before scheduled slot with prior prescriptions.',
+      });
+      setIsSubmitting(false);
+      onBooked(created);
+      onClose();
+    } catch (err: any) {
+      setIsSubmitting(false);
+      setBookingError(err.message || 'Unable to book appointment.');
+    }
   };
 
   return (
@@ -254,24 +269,59 @@ export const AppointmentBookingModal: React.FC<{
           </button>
         </div>
 
+        {bookingError && (
+          <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+            <span>{bookingError}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
             <label className="block font-semibold text-[#17324D] dark:text-[#D1E8E2] mb-1">{t.selectSpecialityLabel}</label>
             <select
               value={speciality}
               onChange={(e) => {
-                setSpeciality(e.target.value);
-                if (e.target.value === 'Cardiology') setDoctorName('Dr. Ananya Mehta');
-                else if (e.target.value === 'Orthopaedics') setDoctorName('Dr. Rahul Shah');
-                else if (e.target.value === 'Dermatology') setDoctorName('Dr. Priya Shah');
-                else setDoctorName('Dr. Rajesh Patil');
+                const newSpec = e.target.value;
+                setSpeciality(newSpec);
+                const docs = mockDoctorsList.filter((d) => d.speciality === newSpec);
+                if (docs.length > 0) {
+                  setDoctorId(docs[0].id);
+                  setDoctorName(docs[0].name);
+                  setFacility(docs[0].facility || docs[0].hospitalName);
+                  if (docs[0].slots && docs[0].slots.length > 0) {
+                    setTime(docs[0].slots[0]);
+                  }
+                }
               }}
               className="w-full rounded-xl border border-[#DDE8E4] dark:border-[#1A3A3A] bg-[#F5F9F7] dark:bg-[#0F2929] px-3 py-2.5 text-[#17324D] dark:text-[#E2EEF4] font-medium"
             >
-              <option value="Cardiology">{t.cardiology}</option>
-              <option value="Orthopaedics">{t.orthopaedics}</option>
-              <option value="Dermatology">{t.dermatology}</option>
-              <option value="General Medicine">{t.generalMedicine}</option>
+              {allSpecialties.map((spec) => (
+                <option key={spec} value={spec}>{spec}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-[#17324D] dark:text-[#D1E8E2] mb-1">Select Specialist Doctor</label>
+            <select
+              value={doctorId}
+              onChange={(e) => {
+                const doc = mockDoctorsList.find((d) => d.id === e.target.value);
+                if (doc) {
+                  setDoctorId(doc.id);
+                  setDoctorName(doc.name);
+                  setFacility(doc.facility || doc.hospitalName);
+                  if (doc.slots && doc.slots.length > 0) {
+                    setTime(doc.slots[0]);
+                  }
+                }
+              }}
+              className="w-full rounded-xl border border-[#DDE8E4] dark:border-[#1A3A3A] bg-[#F5F9F7] dark:bg-[#0F2929] px-3 py-2.5 text-[#17324D] dark:text-[#E2EEF4] font-medium"
+            >
+              {availableDoctors.map((doc) => (
+                <option key={doc.id} value={doc.id}>{doc.name} — {doc.hospitalName}</option>
+              ))}
             </select>
           </div>
 
@@ -284,6 +334,7 @@ export const AppointmentBookingModal: React.FC<{
             >
               <option value="District Hospital Ratnagiri">District Hospital Ratnagiri</option>
               <option value="PHC Khed Clinic (Visiting Specialist)">PHC Khed Clinic (Visiting Specialist)</option>
+              <option value="District Hospital Pune">District Hospital Pune</option>
               <option value="Sub-District Hospital Chiplun">Sub-District Hospital Chiplun</option>
             </select>
           </div>
@@ -306,10 +357,9 @@ export const AppointmentBookingModal: React.FC<{
                 onChange={(e) => setTime(e.target.value)}
                 className="w-full rounded-xl border border-[#DDE8E4] dark:border-[#1A3A3A] bg-[#F5F9F7] dark:bg-[#0F2929] px-3 py-2.5 text-[#17324D] dark:text-[#E2EEF4]"
               >
-                <option value="09:30 AM">09:30 AM (Slot 1)</option>
-                <option value="10:30 AM">10:30 AM (Slot 2)</option>
-                <option value="11:30 AM">11:30 AM (Slot 3)</option>
-                <option value="02:30 PM">02:30 PM (Slot 4)</option>
+                {availableSlots.map((slot) => (
+                  <option key={slot} value={slot}>{slot}</option>
+                ))}
               </select>
             </div>
           </div>

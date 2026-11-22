@@ -71,7 +71,13 @@ export const patchHospitalReferral = async (req: Request, res: Response, next: N
     }
 
     if (status) ref.status = status.toUpperCase();
-    if (tokenNumber) ref.tokenNumber = tokenNumber;
+    if (tokenNumber) {
+      ref.tokenNumber = tokenNumber;
+    } else if (!ref.tokenNumber) {
+      const count = dataStore.appointments.filter((a) => a.referralId).length + 14;
+      const deptPrefix = ref.speciality ? ref.speciality.slice(0, 4).toUpperCase() : 'GEN';
+      ref.tokenNumber = `DH-${deptPrefix}-${count}`;
+    }
     ref.updatedAt = new Date();
 
     // If accepting & scheduling, also ensure an appointment is created
@@ -83,7 +89,9 @@ export const patchHospitalReferral = async (req: Request, res: Response, next: N
       const targetDate = appointmentDate || '2026-08-28';
       const scheduledAt = createUtcInstantFromIst(targetDate, '10:30 AM');
 
-      const newApt = {
+      const existingApt = dataStore.appointments.find((a) => a.referralId === ref.id);
+      if (!existingApt) {
+        const newApt = {
         id: 'apt-' + Date.now(),
         appointmentId: `HS-APT-${Math.floor(1000 + Math.random() * 9000)}`,
         patientId: ref.patientId,
@@ -103,7 +111,11 @@ export const patchHospitalReferral = async (req: Request, res: Response, next: N
       };
 
       dataStore.appointments.unshift(newApt);
-      publishCloudAppointment(newApt);
+        publishCloudAppointment(newApt);
+      } else {
+        if (ref.tokenNumber) existingApt.token = ref.tokenNumber;
+        existingApt.updatedAt = new Date();
+      }
 
       if (pat) {
         dataStore.notifications.unshift({
@@ -111,7 +123,7 @@ export const patchHospitalReferral = async (req: Request, res: Response, next: N
           userId: pat.userId,
           type: 'REFERRAL_ACCEPTED',
           title: 'Referral Accepted by Hospital',
-          message: `Referral ${ref.referralId} accepted. Token ${newApt.token} assigned for ${newApt.date}.`,
+          message: `Referral ${ref.referralId} accepted. Token ${ref.tokenNumber} assigned for ${formatAppointmentDate(scheduledAt)}.`,
           read: false,
           createdAt: new Date(),
         });

@@ -150,6 +150,39 @@ export const createAppointment = async (req: Request, res: Response, next: NextF
     const displayDate = formatAppointmentDate(scheduledAt);
     const displayTime = formatAppointmentTime(scheduledAt);
 
+    // Prevent duplicate active booking by same patient with same doctor on same date
+    const duplicateBooking = dataStore.appointments.find(
+      (a) =>
+        a.patientId === patientId &&
+        a.doctorId === body.doctorId &&
+        a.date === displayDate &&
+        (a.status === 'CONFIRMED' || a.status === 'PENDING')
+    );
+    if (duplicateBooking) {
+      res.status(409).json({
+        success: false,
+        message: 'You already have an active appointment scheduled with this doctor on this date.',
+        existingAppointmentId: duplicateBooking.id,
+      });
+      return;
+    }
+
+    // Prevent slot collision (slot already booked for this doctor)
+    const slotOccupied = dataStore.appointments.find(
+      (a) =>
+        a.doctorId === body.doctorId &&
+        a.date === displayDate &&
+        a.startTime === displayTime &&
+        a.status === 'CONFIRMED'
+    );
+    if (slotOccupied) {
+      res.status(409).json({
+        success: false,
+        message: `This appointment slot (${displayDate} at ${displayTime}) is already occupied. Please select another slot.`,
+      });
+      return;
+    }
+
     const newApt: AppointmentEntity = {
       id: 'apt-' + Date.now(),
       appointmentId: `HS-APT-${Math.floor(1000 + Math.random() * 9000)}`,

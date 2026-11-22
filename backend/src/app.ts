@@ -23,6 +23,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import deepgramRoutes from './routes/deepgramRoutes.js';
 import voiceRoutes from './routes/voiceRoutes.js';
+import ivrRoutes from './routes/ivrRoutes.js';
 
 export const createApp = () => {
   const app = express();
@@ -99,6 +100,7 @@ export const createApp = () => {
   app.use('/api/speech-to-text', voiceRoutes);
   app.use('/api/text-to-speech', voiceRoutes);
   app.use('/api/voice', voiceRoutes);
+  app.use('/api/ivr', ivrRoutes);
 
   // 404 Route Handler
   app.use('/api/*', (_req, res) => {

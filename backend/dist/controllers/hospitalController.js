@@ -64,8 +64,14 @@ export const patchHospitalReferral = async (req, res, next) => {
         }
         if (status)
             ref.status = status.toUpperCase();
-        if (tokenNumber)
+        if (tokenNumber) {
             ref.tokenNumber = tokenNumber;
+        }
+        else if (!ref.tokenNumber) {
+            const count = dataStore.appointments.filter((a) => a.referralId).length + 14;
+            const deptPrefix = ref.speciality ? ref.speciality.slice(0, 4).toUpperCase() : 'GEN';
+            ref.tokenNumber = `DH-${deptPrefix}-${count}`;
+        }
         ref.updatedAt = new Date();
         // If accepting & scheduling, also ensure an appointment is created
         if (status === 'HOSPITAL_ACCEPTED' || status === 'APPOINTMENT_SCHEDULED') {
@@ -74,33 +80,41 @@ export const patchHospitalReferral = async (req, res, next) => {
             const fac = dataStore.facilities.find((f) => f.id === ref.receivingHospitalId) || dataStore.facilities[4];
             const targetDate = appointmentDate || '2026-08-28';
             const scheduledAt = createUtcInstantFromIst(targetDate, '10:30 AM');
-            const newApt = {
-                id: 'apt-' + Date.now(),
-                appointmentId: `HS-APT-${Math.floor(1000 + Math.random() * 9000)}`,
-                patientId: ref.patientId,
-                doctorId: doc.id,
-                facilityId: fac.id,
-                referralId: ref.id,
-                scheduledAt,
-                date: formatAppointmentDate(scheduledAt),
-                startTime: formatAppointmentTime(scheduledAt),
-                endTime: '11:00 AM',
-                mode: 'IN_PERSON',
-                status: 'CONFIRMED',
-                token: ref.tokenNumber || 'DH-CARD-14',
-                reasonForVisit: `Referred ${ref.speciality} Consultation (${ref.referralId})`,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-            dataStore.appointments.unshift(newApt);
-            publishCloudAppointment(newApt);
+            const existingApt = dataStore.appointments.find((a) => a.referralId === ref.id);
+            if (!existingApt) {
+                const newApt = {
+                    id: 'apt-' + Date.now(),
+                    appointmentId: `HS-APT-${Math.floor(1000 + Math.random() * 9000)}`,
+                    patientId: ref.patientId,
+                    doctorId: doc.id,
+                    facilityId: fac.id,
+                    referralId: ref.id,
+                    scheduledAt,
+                    date: formatAppointmentDate(scheduledAt),
+                    startTime: formatAppointmentTime(scheduledAt),
+                    endTime: '11:00 AM',
+                    mode: 'IN_PERSON',
+                    status: 'CONFIRMED',
+                    token: ref.tokenNumber || 'DH-CARD-14',
+                    reasonForVisit: `Referred ${ref.speciality} Consultation (${ref.referralId})`,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                };
+                dataStore.appointments.unshift(newApt);
+                publishCloudAppointment(newApt);
+            }
+            else {
+                if (ref.tokenNumber)
+                    existingApt.token = ref.tokenNumber;
+                existingApt.updatedAt = new Date();
+            }
             if (pat) {
                 dataStore.notifications.unshift({
                     id: 'notif-' + Date.now(),
                     userId: pat.userId,
                     type: 'REFERRAL_ACCEPTED',
                     title: 'Referral Accepted by Hospital',
-                    message: `Referral ${ref.referralId} accepted. Token ${newApt.token} assigned for ${newApt.date}.`,
+                    message: `Referral ${ref.referralId} accepted. Token ${ref.tokenNumber} assigned for ${formatAppointmentDate(scheduledAt)}.`,
                     read: false,
                     createdAt: new Date(),
                 });

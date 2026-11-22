@@ -179,16 +179,8 @@ export const patientService = {
   async bookAppointment(newApt: Omit<Appointment, 'id' | 'tokenNumber' | 'status'>): Promise<Appointment> {
     try {
       const scheduledAt = createUtcInstantFromIst(newApt.date, newApt.time);
-      const doctorId = newApt.doctorId || (
-        newApt.doctorName.toLowerCase().includes('rahul') ? 'doc-002' :
-        newApt.doctorName.toLowerCase().includes('priya') ? 'doc-003' :
-        newApt.doctorName.toLowerCase().includes('arjun') ? 'doc-004' :
-        newApt.doctorName.toLowerCase().includes('neha') ? 'doc-005' :
-        newApt.doctorName.toLowerCase().includes('vivek') ? 'doc-006' :
-        newApt.doctorName.toLowerCase().includes('kavita') ? 'doc-007' :
-        newApt.doctorName.toLowerCase().includes('sameer') ? 'doc-008' :
-        'doc-001'
-      );
+      const docMatch = mockDoctorsList.find((d) => d.name.toLowerCase() === newApt.doctorName.toLowerCase() || newApt.doctorName.toLowerCase().includes(d.name.toLowerCase()) || d.name.toLowerCase().includes(newApt.doctorName.toLowerCase()));
+      const doctorId = newApt.doctorId || docMatch?.id || 'doc-001';
       const facilityId = newApt.facilityId || (newApt.facility.toLowerCase().includes('phc') ? 'fac-phc-01' : 'fac-dh-01');
 
       const res = await fetch(`${API_BASE_URL}/appointments`, {

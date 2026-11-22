@@ -213,7 +213,8 @@ class DoctorService {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          appointmentId: 'apt-001',
+          appointmentId: form.appointmentId || 'apt-001',
+          patientId: form.patientId,
           diagnosis: form.provisionalDiagnosis,
           clinicalNotes: form.doctorNotes || form.clinicalObservations,
           vitals: form.vitals,

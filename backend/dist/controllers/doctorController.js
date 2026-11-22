@@ -150,8 +150,8 @@ export const completeConsultation = async (req, res, next) => {
     try {
         const { appointmentId, patientId, clinicalNotes, diagnosis, vitals, prescription, prescriptions, createFollowUp, createFollowUpDays, followUpDays, followUpInstructions, } = req.body;
         const doc = dataStore.doctors.find((d) => d.userId === req.user?.userId || d.id === req.user?.doctorId) || dataStore.doctors[0];
-        const pat = dataStore.patients.find((p) => p.id === patientId) || dataStore.patients[0];
         const apt = dataStore.appointments.find((a) => a.id === appointmentId || a.appointmentId === appointmentId);
+        const pat = dataStore.patients.find((p) => p.id === (patientId || apt?.patientId)) || dataStore.patients[0];
         if (apt) {
             apt.status = 'COMPLETED';
             apt.updatedAt = new Date();

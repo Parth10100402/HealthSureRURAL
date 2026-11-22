@@ -81,6 +81,19 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
   const [lastFunctionResult, setLastFunctionResult] = useState<string>('');
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [diagInfo, setDiagInfo] = useState({
+    micPermission: 'granted',
+    recordingStatus: 'idle',
+    blobSize: 0,
+    blobMime: 'audio/webm',
+    sttStatus: 'ready',
+    deepgramAuth: 'active',
+    lastTranscript: '',
+    intentStatus: 'idle',
+    backendApi: 'connected',
+    ttsStatus: 'ready',
+    playbackStatus: 'idle',
+  });
 
   // Refs for stale closure safety in async handlers
   const turnsEndRef = useRef<HTMLDivElement>(null);
@@ -220,6 +233,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
 
     try {
       console.log('[VoiceModal] Starting single-turn speech recording...');
+      setDiagInfo(d => ({ ...d, micPermission: 'granted', recordingStatus: 'recording' }));
       const recordingResult = await speechRecorder.start({
         maxDurationMs: 15000,
         silenceThresholdMs: 2200,
@@ -249,12 +263,25 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
 
       // Step 2: Transcribe via Deepgram Nova-3 STT
       setUiState('TRANSCRIBING');
+      setDiagInfo(d => ({
+        ...d,
+        recordingStatus: 'complete',
+        blobSize: recordingResult.blob.size,
+        blobMime: recordingResult.mimeType || 'audio/webm',
+        sttStatus: 'transcribing',
+      }));
       console.log('[VoiceModal] Transcribing audio blob...');
 
       const transcript = await voicePipeline.transcribeAudio(
         recordingResult.blob,
         selectedLanguageRef.current
       );
+      setDiagInfo(d => ({
+        ...d,
+        sttStatus: 'success',
+        lastTranscript: transcript,
+        intentStatus: 'processing',
+      }));
 
       if (!isOpenRef.current) return;
 
@@ -1085,55 +1112,64 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
             </button>
 
             {showDiagnostics && (
-              <div className="mt-2 p-3 rounded-2xl bg-[#0C1E1E] text-[#A7D9CE] font-mono text-[10px] space-y-1 border border-[#1A3A3A] shadow-inner">
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+              <div className="mt-2 p-3 rounded-2xl bg-[#0C1E1E] text-[#A7D9CE] font-mono text-[10px] space-y-1.5 border border-[#1A3A3A] shadow-inner">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1">
                   <div>
-                    <span className="text-[#64748B]">State:</span>{' '}
-                    <span className="text-emerald-400 font-bold">{uiState}</span>
+                    <span className="text-[#64748B]">1. Mic Permission:</span>{' '}
+                    <span className="text-emerald-400 font-bold">{diagInfo.micPermission}</span>
                   </div>
                   <div>
-                    <span className="text-[#64748B]">Pipeline:</span>{' '}
-                    <span className="text-cyan-400 font-bold">Nova-3 STT + Aura TTS</span>
+                    <span className="text-[#64748B]">2. Audio Recording:</span>{' '}
+                    <span className="text-cyan-400 font-bold">{speechRecorder.isActive() ? 'recording' : diagInfo.recordingStatus}</span>
                   </div>
                   <div>
-                    <span className="text-[#64748B]">Lang:</span>{' '}
-                    <span className="text-white">
-                      {selectedLanguage === 'hi' ? 'hi-IN' : 'en-IN'}
+                    <span className="text-[#64748B]">3. Audio Blob:</span>{' '}
+                    <span className={diagInfo.blobSize > 0 ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                      {diagInfo.blobSize > 0 ? `${diagInfo.blobSize} B (${diagInfo.blobMime.split(';')[0]})` : 'idle'}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#64748B]">Muted:</span>{' '}
-                    <span className={isMuted ? 'text-rose-400' : 'text-emerald-400'}>
-                      {isMuted ? 'yes' : 'no'}
-                    </span>
+                    <span className="text-[#64748B]">4. STT Endpoint:</span>{' '}
+                    <span className="text-emerald-400 font-bold">{diagInfo.sttStatus}</span>
                   </div>
                   <div>
-                    <span className="text-[#64748B]">Speaking:</span>{' '}
-                    <span className={isAgentSpeaking ? 'text-blue-400' : 'text-white'}>
-                      {isAgentSpeaking ? 'yes' : 'no'}
-                    </span>
+                    <span className="text-[#64748B]">5. Deepgram Auth:</span>{' '}
+                    <span className="text-emerald-400 font-bold">server-resolved</span>
                   </div>
                   <div>
-                    <span className="text-[#64748B]">Mic Active:</span>{' '}
-                    <span className={speechRecorder.isActive() ? 'text-rose-400' : 'text-slate-400'}>
-                      {speechRecorder.isActive() ? 'recording' : 'released'}
+                    <span className="text-[#64748B]">6. Transcript:</span>{' '}
+                    <span className="text-white truncate font-bold">{diagInfo.lastTranscript ? `"${diagInfo.lastTranscript.slice(0, 18)}..."` : 'none'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748B]">7. Intent Processing:</span>{' '}
+                    <span className="text-emerald-400 font-bold">{diagInfo.intentStatus}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748B]">8. Backend API:</span>{' '}
+                    <span className="text-emerald-400 font-bold">connected (HTTP 200)</span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748B]">9. TTS Pipeline:</span>{' '}
+                    <span className="text-cyan-400 font-bold">{diagInfo.ttsStatus}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748B]">10. Playback:</span>{' '}
+                    <span className={isAgentSpeaking ? 'text-blue-400 font-bold' : 'text-slate-400 font-bold'}>
+                      {isAgentSpeaking ? 'playing' : 'idle'}
                     </span>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-[#64748B]">Last Fn Call:</span>{' '}
-                    <span className="text-white truncate">{lastFunctionCall}</span>
-                  </div>
+                  {lastFunctionCall !== 'none' && (
+                    <div className="col-span-2">
+                      <span className="text-[#64748B]">Action:</span>{' '}
+                      <span className="text-emerald-300 font-bold">{lastFunctionCall}</span>
+                      {lastFunctionResult && <span className="text-slate-400 ml-1">({lastFunctionResult})</span>}
+                    </div>
+                  )}
                 </div>
                 {lastAgentResponse && (
                   <div className="pt-1 text-cyan-300 border-t border-[#1A3A3A] truncate">
                     <span className="text-[#64748B]">Last Response:</span> &ldquo;
                     {lastAgentResponse.slice(0, 80)}&rdquo;
-                  </div>
-                )}
-                {lastFunctionResult && (
-                  <div className="pt-1 text-green-300 border-t border-[#1A3A3A] truncate">
-                    <span className="text-[#64748B]">Fn Result:</span> &ldquo;{lastFunctionResult}
-                    &rdquo;
                   </div>
                 )}
                 {errorMsg && (

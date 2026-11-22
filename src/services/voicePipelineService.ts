@@ -24,19 +24,23 @@ export class VoicePipelineService {
 
   /**
    * Upload recorded audio blob to /api/speech-to-text and retrieve transcription.
+   * If network audio transcription is unavailable, seamlessly uses native browser fallback transcript.
+   * Zero API keys client-side. Strict security compliance.
    */
   public async transcribeAudio(
     audioBlob: Blob,
-    language: 'hi' | 'en'
+    language: 'hi' | 'en',
+    nativeFallbackTranscript?: string
   ): Promise<string> {
     const token = getStoredToken();
     const langParam = language === 'hi' ? 'hi' : 'en';
+    const fallbackText = (nativeFallbackTranscript || '').trim();
 
     console.log(
-      `[VoicePipeline] Uploading audio (${audioBlob.size} bytes, type: ${audioBlob.type}, lang: ${langParam})...`
+      `[VoicePipeline] Transcribing turn (${audioBlob.size} bytes, type: ${audioBlob.type}, lang: ${langParam}, nativeFallback: "${fallbackText}")...`
     );
 
-    // Tier 1: Try serverless endpoint /api/speech-to-text
+    // Tier 1: High-precision server-side Deepgram Nova-3 STT via /api/speech-to-text
     try {
       let response = await fetch(`/api/speech-to-text?lang=${langParam}`, {
         method: 'POST',
@@ -63,45 +67,32 @@ export class VoicePipelineService {
 
       if (response.ok) {
         const result = (await response.json()) as TranscribeResponse;
-        const transcript = (result.transcript || '').trim();
-        console.log(`[VoicePipeline] Server STT result: "${transcript}"`);
-        return transcript;
+        const serverTranscript = (result.transcript || '').trim();
+        if (serverTranscript) {
+          console.log(`[VoicePipeline] Server Deepgram STT result: "${serverTranscript}"`);
+          return serverTranscript;
+        }
+        // If server returned empty transcript but native speech recognition heard speech, use native!
+        if (fallbackText) {
+          console.log(`[VoicePipeline] Server returned empty, using parallel native transcript: "${fallbackText}"`);
+          return fallbackText;
+        }
+        return '';
       }
       console.warn('[VoicePipeline] Server STT returned non-ok status:', response.status);
     } catch (serverErr) {
-      console.warn('[VoicePipeline] Server STT network error, falling back to direct Deepgram:', serverErr);
+      console.warn('[VoicePipeline] Server STT network error:', serverErr);
     }
 
-    // Tier 2: Direct Client-Side Deepgram STT (Zero-proxy fallback)
-    try {
-      console.log('[VoicePipeline] Invoking direct Deepgram Nova-3 client fallback...');
-      const fallbackKey = '7425447b50649b3e97367978dbd40c1ae6c8d60d';
-      const dgLang = language === 'hi' ? '&language=multi' : '&language=en';
-      const cleanContentType = audioBlob.type ? audioBlob.type.split(';')[0] : 'audio/webm';
+    // Tier 2: Resilient Native Browser Speech Recognition Fallback
+    if (fallbackText) {
+      console.log(`[VoicePipeline] Utilizing resilient native browser STT fallback: "${fallbackText}"`);
+      return fallbackText;
+    }
 
-      const dgRes = await fetch(
-        `https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true${dgLang}`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Token ${fallbackKey}`,
-            'Content-Type': cleanContentType || 'audio/webm',
-          },
-          body: audioBlob,
-        }
-      );
-
-      if (dgRes.ok) {
-        const data = (await dgRes.json()) as any;
-        const transcript = (
-          data.results?.channels?.[0]?.alternatives?.[0]?.transcript || ''
-        ).trim();
-        console.log(`[VoicePipeline] Direct Deepgram STT succeeded: "${transcript}"`);
-        return transcript;
-      }
-      console.warn('[VoicePipeline] Direct Deepgram fallback returned status:', dgRes.status);
-    } catch (dgErr) {
-      console.warn('[VoicePipeline] Direct Deepgram fallback network exception:', dgErr);
+    // If audio is extremely small (< 1KB), it was silence or accidental tap
+    if (audioBlob.size < 1200) {
+      return '';
     }
 
     throw new Error(

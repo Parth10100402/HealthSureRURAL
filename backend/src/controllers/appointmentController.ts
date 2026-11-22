@@ -319,6 +319,15 @@ export const deleteAppointment = async (req: Request, res: Response, next: NextF
       return;
     }
 
+    if (apt.status === 'CANCELLED') {
+      res.json({
+        success: true,
+        data: apt,
+        message: 'Appointment is already cancelled.',
+      });
+      return;
+    }
+
     apt.status = 'CANCELLED';
     apt.updatedAt = new Date();
 

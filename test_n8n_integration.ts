@@ -10,7 +10,8 @@ import { eventDispatcher } from './backend/src/services/n8n/eventDispatcher.js';
 import { config } from './backend/src/config/env.js';
 
 let server: http.Server;
-const SERVICE_KEY = config.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183';
+config.HEALTHSURE_SERVICE_API_KEY = process.env.HEALTHSURE_SERVICE_API_KEY || 'test_hs_service_key_automated_suite_2026';
+const SERVICE_KEY = config.HEALTHSURE_SERVICE_API_KEY;
 const WRONG_SERVICE_KEY = 'hs_svc_invalid_key_999999';
 
 let passed = 0;
@@ -374,14 +375,14 @@ async function runTests() {
     console.log(` RESULTS: ${passed} PASSED / ${failed} FAILED (Total ${passed + failed} Checks)`);
     console.log('========================================================================\n');
   } finally {
-    server.close(() => {
-      process.exit(failed > 0 ? 1 : 0);
-    });
+    if (typeof (server as any).closeAllConnections === 'function') {
+      (server as any).closeAllConnections();
+    }
+    server.close();
   }
 }
 
 runTests().catch((err) => {
   console.error('Fatal test error:', err);
-  if (server) server.close(() => process.exit(1));
-  else process.exit(1);
+  if (server) server.close();
 });

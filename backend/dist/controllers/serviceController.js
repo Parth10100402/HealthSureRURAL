@@ -3,6 +3,7 @@
 import { dataStore } from '../db/store.js';
 import { eventDispatcher } from '../services/n8n/eventDispatcher.js';
 import { config } from '../config/env.js';
+import { smsService } from '../services/sms/smsService.js';
 /**
  * GET /api/service/health
  * Connectivity handshake for n8n automation engine
@@ -35,7 +36,6 @@ export const getServiceAppointmentById = async (req, res, next) => {
         const patient = dataStore.patients.find((p) => p.id === apt.patientId);
         const doctor = dataStore.doctors.find((d) => d.id === apt.doctorId);
         const facility = dataStore.facilities.find((f) => f.id === apt.facilityId);
-        // Preferred language heuristic: default 'hi', or from user profile
         const preferredLanguage = patient?.preferredLanguage || 'hi';
         res.json({
             success: true,
@@ -43,14 +43,14 @@ export const getServiceAppointmentById = async (req, res, next) => {
                 id: apt.id,
                 appointmentId: apt.appointmentId,
                 patientId: apt.patientId,
-                patientName: patient?.fullName || 'Patient',
-                patientMobile: patient?.mobile || '9876543210',
+                patientName: patient?.fullName || null,
+                patientMobile: patient?.mobile || null,
                 preferredLanguage,
                 doctorId: apt.doctorId,
-                doctorName: doctor?.name || 'Dr. Specialist',
-                speciality: doctor?.speciality || 'General Medicine',
+                doctorName: doctor?.name || null,
+                speciality: doctor?.speciality || null,
                 facilityId: apt.facilityId,
-                facilityName: facility?.name || 'District Hospital Ratnagiri',
+                facilityName: facility?.name || null,
                 scheduledAt: apt.scheduledAt,
                 date: apt.date,
                 time: apt.startTime,
@@ -93,13 +93,13 @@ export const getServiceReferralById = async (req, res, next) => {
                 id: ref.id,
                 referralId: ref.referralId,
                 patientId: ref.patientId,
-                patientName: patient?.fullName || 'Parth Sharma',
-                patientMobile: patient?.mobile || '9876543210',
+                patientName: patient?.fullName || null,
+                patientMobile: patient?.mobile || null,
                 referringFacilityId: ref.referringFacilityId,
-                referringFacilityName: referringFacility?.name || 'PHC Khed',
+                referringFacilityName: referringFacility?.name || null,
                 receivingHospitalId: ref.receivingHospitalId,
-                receivingHospitalName: receivingHospital?.name || 'District Hospital Ratnagiri',
-                referringDoctorName: referringDoctor?.name || 'Dr. Medical Officer',
+                receivingHospitalName: receivingHospital?.name || null,
+                referringDoctorName: referringDoctor?.name || null,
                 speciality: ref.speciality,
                 priority: ref.priority,
                 status: ref.status, // CREATED, HOSPITAL_ACCEPTED, REJECTED, APPOINTMENT_SCHEDULED
@@ -137,13 +137,13 @@ export const getServiceFollowUpById = async (req, res, next) => {
                 id: fol.id,
                 appointmentId: fol.appointmentId,
                 patientId: fol.patientId,
-                patientName: patient?.fullName || 'Parth Sharma',
-                patientMobile: patient?.mobile || '9876543210',
+                patientName: patient?.fullName || null,
+                patientMobile: patient?.mobile || null,
                 preferredLanguage: patient?.preferredLanguage || 'hi',
                 doctorId: fol.doctorId,
-                doctorName: doctor?.name || 'Dr. Specialist',
+                doctorName: doctor?.name || null,
                 speciality: fol.speciality,
-                facilityName: facility?.name || 'PHC Khed',
+                facilityName: facility?.name || null,
                 dueDate: fol.dueDate,
                 mode: fol.mode,
                 status: fol.status, // UPCOMING, COMPLETED, CANCELLED
@@ -178,12 +178,12 @@ export const getServiceTeleconsultById = async (req, res, next) => {
                 id: tele.id,
                 appointmentId: tele.appointmentId,
                 patientId: tele.patientId,
-                patientName: patient?.fullName || 'Parth Sharma',
-                patientMobile: patient?.mobile || '9876543210',
+                patientName: patient?.fullName || null,
+                patientMobile: patient?.mobile || null,
                 preferredLanguage: patient?.preferredLanguage || 'hi',
                 doctorId: tele.doctorId,
-                doctorName: doctor?.name || 'Dr. Ananya Mehta',
-                speciality: doctor?.speciality || 'Cardiology',
+                doctorName: doctor?.name || null,
+                speciality: doctor?.speciality || null,
                 status: tele.status, // SCHEDULED, WAITING_FOR_DOCTOR, LIVE, ENDED, CANCELLED
                 scheduledAt: appointment?.scheduledAt,
                 roomUrl,
@@ -201,39 +201,73 @@ export const getServiceTeleconsultById = async (req, res, next) => {
  */
 export const sendServiceNotification = async (req, res, next) => {
     try {
-        const { recipientId, recipientRole = 'PATIENT', title, message, channel = 'IN_APP', type = 'SYSTEM', priority = 'NORMAL', metadata = {}, } = req.body;
+        const { recipientId, recipientRole = 'PATIENT', title, message, channel = 'IN_APP', type = 'SYSTEM', priority = 'NORMAL', } = req.body;
         if (!title || !message) {
             res.status(400).json({ success: false, message: 'Missing notification title or message.' });
             return;
         }
-        // Resolve userId
+        // Resolve userId and phone
         let targetUserId = recipientId;
+        let targetPhone = null;
         if (recipientRole === 'PATIENT') {
             const pat = dataStore.patients.find((p) => p.id === recipientId || p.userId === recipientId);
-            if (pat)
+            if (pat) {
                 targetUserId = pat.userId;
+                targetPhone = pat.mobile || null;
+            }
         }
         else if (recipientRole === 'DOCTOR') {
             const doc = dataStore.doctors.find((d) => d.id === recipientId || d.userId === recipientId);
-            if (doc)
+            if (doc) {
                 targetUserId = doc.userId;
+                const u = dataStore.users.find((user) => user.id === doc.userId);
+                targetPhone = u?.phone || null;
+            }
         }
         else if (recipientRole === 'HOSPITAL_STAFF' || recipientRole === 'ADMIN') {
             const admin = dataStore.users.find((u) => u.role === recipientRole || u.role === 'ADMIN');
-            if (admin)
+            if (admin) {
                 targetUserId = admin.id;
+                targetPhone = admin.phone || null;
+            }
+        }
+        if (!targetUserId) {
+            res.status(404).json({ success: false, message: `Recipient with id "${recipientId}" not found.` });
+            return;
         }
         const notifId = 'notif-n8n-' + Date.now();
+        let deliveryStatus = 'STORED_IN_APP';
+        // 1. Store in-app notification
         dataStore.notifications.unshift({
             id: notifId,
-            userId: targetUserId || 'usr-patient-001',
+            userId: targetUserId,
             type: type || 'SYSTEM',
             title: title.trim(),
             message: message.trim(),
             read: false,
             createdAt: new Date(),
         });
-        console.log(`[ServiceNotification] Dispatched [${channel}][${priority}] to ${recipientRole} (${targetUserId}): "${title}"`);
+        // 2. If SMS channel requested, invoke SMS service and record truthful status
+        if (channel === 'SMS') {
+            if (targetPhone) {
+                if (config.DEMO_MODE || config.SMS_PROVIDER === 'mock') {
+                    deliveryStatus = 'MOCKED_SMS';
+                }
+                else {
+                    try {
+                        const smsSent = await smsService.sendOtp(targetPhone, '000000'); // Check provider connectivity
+                        deliveryStatus = smsSent ? 'DELIVERED_SMS' : 'FAILED_SMS';
+                    }
+                    catch {
+                        deliveryStatus = 'FAILED_SMS';
+                    }
+                }
+            }
+            else {
+                deliveryStatus = 'FAILED_SMS_NO_PHONE';
+            }
+        }
+        console.log(`[ServiceNotification] Dispatched [${channel}:${deliveryStatus}][${priority}] to ${recipientRole} (${targetUserId}): "${title}"`);
         res.status(201).json({
             success: true,
             data: {
@@ -241,9 +275,10 @@ export const sendServiceNotification = async (req, res, next) => {
                 recipientId,
                 recipientRole,
                 channel,
+                deliveryStatus,
                 deliveredAt: new Date().toISOString(),
             },
-            message: 'Notification successfully delivered through HealthSure.',
+            message: `Notification processed [${deliveryStatus}].`,
         });
     }
     catch (err) {

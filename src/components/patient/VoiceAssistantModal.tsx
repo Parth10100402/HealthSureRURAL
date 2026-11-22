@@ -237,6 +237,7 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
       const recordingResult = await speechRecorder.start({
         maxDurationMs: 15000,
         silenceThresholdMs: 2200,
+        language: selectedLanguageRef.current,
         onVolumeChange: (vol) => {
           if (isOpenRef.current) {
             setAudioVolume(vol);
@@ -244,6 +245,11 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
         },
         onSilenceDetected: () => {
           console.log('[VoiceModal] Silence detected, finalizing speech turn.');
+        },
+        onInterimTranscript: (interim) => {
+          if (isOpenRef.current) {
+            setLiveTranscript(interim);
+          }
         },
       });
 
@@ -254,14 +260,14 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
         return;
       }
 
-      if (recordingResult.durationMs < 400 || recordingResult.blob.size < 800) {
+      if (recordingResult.durationMs < 300 || (recordingResult.blob.size < 400 && !recordingResult.nativeTranscript)) {
         // Ignored accidental tap or empty audio
         console.log('[VoiceModal] Audio clip too short or silent.');
         setUiState('IDLE');
         return;
       }
 
-      // Step 2: Transcribe via Deepgram Nova-3 STT
+      // Step 2: Transcribe via Deepgram Nova-3 STT (with Native Speech fallback)
       setUiState('TRANSCRIBING');
       setDiagInfo(d => ({
         ...d,
@@ -274,7 +280,8 @@ export const VoiceAssistantModal: React.FC<VoiceAssistantModalProps> = ({ isOpen
 
       const transcript = await voicePipeline.transcribeAudio(
         recordingResult.blob,
-        selectedLanguageRef.current
+        selectedLanguageRef.current,
+        recordingResult.nativeTranscript
       );
       setDiagInfo(d => ({
         ...d,

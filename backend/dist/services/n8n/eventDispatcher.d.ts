@@ -1,4 +1,5 @@
 export type DomainEventType = 'appointment.booked' | 'appointment.cancelled' | 'appointment.rescheduled' | 'referral.created' | 'referral.status_changed' | 'consultation.completed' | 'teleconsultation.scheduled' | 'teleconsultation.rescheduled' | 'teleconsultation.cancelled' | 'teleconsultation.session_started' | 'teleconsultation.session_ended';
+export type EventStatus = 'PENDING' | 'MOCKED' | 'DELIVERED' | 'FAILED' | 'RETRYING';
 export interface DomainEvent<T = any> {
     id: string;
     eventId: string;
@@ -6,7 +7,7 @@ export interface DomainEvent<T = any> {
     idempotencyKey: string;
     timestamp: string;
     payload: T;
-    status: 'PENDING' | 'DELIVERED' | 'FAILED' | 'RETRYING';
+    status: EventStatus;
     attempts: number;
     lastAttemptAt?: string;
     deliveredAt?: string;
@@ -15,6 +16,7 @@ export interface DomainEvent<T = any> {
 export interface ObservabilityMetrics {
     totalProcessed: number;
     successful: number;
+    mocked: number;
     failed: number;
     retried: number;
     pending: number;
@@ -43,14 +45,23 @@ declare class EventOutboxService {
     generateHmacSignature(payloadString: string): string;
     /**
      * Emit a domain event.
-     * Atomically records the event into outbox and asynchronously dispatches to n8n webhook.
+     * Atomically records the event into transactional outbox (Prisma + Memory)
+     * and asynchronously dispatches to n8n webhook when enabled.
      */
     emit<T = any>(eventType: DomainEventType, payload: T, customIdempotencyKey?: string): Promise<DomainEvent<T>>;
     /**
      * Asynchronously send event to n8n webhook with exponential backoff retries.
-     * Graceful fallback: If n8n is offline or disabled, marks event FAILED without blocking backend operations.
+     * Truthful delivery status: NEVER marks MOCKED events as DELIVERED.
      */
-    private dispatchWithRetry;
+    dispatchWithRetry(event: DomainEvent): Promise<void>;
+    /**
+     * Synchronize event state updates back into PostgreSQL Outbox table
+     */
+    private syncEventToDatabase;
+    /**
+     * Process pending retries for any events in RETRYING or PENDING status
+     */
+    processPendingRetries(): Promise<number>;
     /**
      * Retrieve all outbox events with optional filtering
      */

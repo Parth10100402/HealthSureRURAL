@@ -10,7 +10,16 @@ export const serviceAuthenticate = (req: Request, res: Response, next: NextFunct
     (req.headers['x-service-key'] as string) ||
     (req.headers['authorization']?.startsWith('Bearer ') ? req.headers['authorization'].slice(7).trim() : '');
 
-  const expectedKey = config.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183';
+  const expectedKey = config.HEALTHSURE_SERVICE_API_KEY?.trim();
+
+  if (!expectedKey) {
+    res.status(503).json({
+      success: false,
+      error: 'SERVICE_AUTH_UNCONFIGURED',
+      message: 'Dedicated HealthSure service API key is not configured on server.',
+    });
+    return;
+  }
 
   if (!serviceKey || serviceKey !== expectedKey) {
     res.status(401).json({

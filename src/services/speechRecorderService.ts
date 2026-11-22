@@ -12,13 +12,16 @@ export interface RecordingResult {
   blob: Blob;
   mimeType: string;
   durationMs: number;
+  nativeTranscript?: string;
 }
 
 export interface RecorderOptions {
   maxDurationMs?: number;      // Default 15 seconds
   silenceThresholdMs?: number; // Silence duration before auto-stop (default 2000ms)
+  language?: 'hi' | 'en';
   onVolumeChange?: (volume: number) => void;
   onSilenceDetected?: () => void;
+  onInterimTranscript?: (transcript: string) => void;
 }
 
 export class SpeechRecorderService {
@@ -31,6 +34,8 @@ export class SpeechRecorderService {
   private maxDurationTimer: any = null;
   private isRecording = false;
   private startTime = 0;
+  private speechRecognition: any = null;
+  private nativeTranscript = '';
 
   /**
    * Best supported audio mime type across desktop Chrome, Edge, Firefox, and mobile Safari/Chrome.
@@ -85,8 +90,10 @@ export class SpeechRecorderService {
     const {
       maxDurationMs = 15000,
       silenceThresholdMs = 2200,
+      language = 'hi',
       onVolumeChange,
       onSilenceDetected,
+      onInterimTranscript,
     } = options;
 
     // 1. Request microphone access
@@ -114,8 +121,45 @@ export class SpeechRecorderService {
     this.audioChunks = [];
     this.isRecording = true;
     this.startTime = Date.now();
+    this.nativeTranscript = '';
 
-    // 2. Setup MediaRecorder with best supported mimeType
+    // 2. Setup parallel native SpeechRecognition as bulletproof client fallback
+    try {
+      const SpeechRec =
+        typeof window !== 'undefined'
+          ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+          : null;
+      if (SpeechRec) {
+        const recognition = new SpeechRec();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = language === 'hi' ? 'hi-IN' : 'en-IN';
+
+        recognition.onresult = (event: any) => {
+          let full = '';
+          for (let i = 0; i < event.results.length; i++) {
+            const piece = event.results[i][0]?.transcript || '';
+            full += piece + ' ';
+          }
+          this.nativeTranscript = full.trim();
+          if (onInterimTranscript && this.nativeTranscript) {
+            onInterimTranscript(this.nativeTranscript);
+          }
+        };
+
+        recognition.onerror = (e: any) => {
+          console.warn('[SpeechRecorder] Native speech recognizer notification:', e.error);
+        };
+
+        recognition.start();
+        this.speechRecognition = recognition;
+        console.log('[SpeechRecorder] Parallel native SpeechRecognition active.');
+      }
+    } catch (recErr) {
+      console.warn('[SpeechRecorder] Parallel SpeechRecognition initialization skipped:', recErr);
+    }
+
+    // 3. Setup MediaRecorder with best supported mimeType
     const mimeType = SpeechRecorderService.getSupportedMimeType();
     const recorderOptions: MediaRecorderOptions = mimeType ? { mimeType } : {};
 
@@ -134,10 +178,10 @@ export class SpeechRecorderService {
       }
     };
 
-    // 3. Setup silence detection via AnalyserNode
+    // 4. Setup silence detection via AnalyserNode
     this._setupSilenceDetection(silenceThresholdMs, onVolumeChange, onSilenceDetected);
 
-    // 4. Setup max duration safety timer
+    // 5. Setup max duration safety timer
     this.maxDurationTimer = setTimeout(() => {
       console.log('[SpeechRecorder] Max duration reached, stopping recording.');
       this.stop();
@@ -147,7 +191,7 @@ export class SpeechRecorderService {
     this.mediaRecorder.start(250);
     console.log('[SpeechRecorder] Recording started. MimeType:', effectiveMimeType);
 
-    // 5. Return promise that resolves when onstop fires
+    // 6. Return promise that resolves when onstop fires
     return new Promise<RecordingResult>((resolve, reject) => {
       if (!this.mediaRecorder) {
         this._cleanup();
@@ -158,13 +202,15 @@ export class SpeechRecorderService {
       this.mediaRecorder.onstop = () => {
         const durationMs = Date.now() - this.startTime;
         const blob = new Blob(this.audioChunks, { type: effectiveMimeType });
-        console.log(`[SpeechRecorder] Recording stopped. Duration: ${durationMs}ms, Size: ${blob.size} bytes`);
-        this._cleanup();
-        resolve({
+        console.log(`[SpeechRecorder] Recording stopped. Duration: ${durationMs}ms, Size: ${blob.size} bytes, Native: "${this.nativeTranscript}"`);
+        const result: RecordingResult = {
           blob,
           mimeType: effectiveMimeType,
           durationMs,
-        });
+          nativeTranscript: this.nativeTranscript.trim(),
+        };
+        this._cleanup();
+        resolve(result);
       };
 
       this.mediaRecorder.onerror = (event: any) => {
@@ -182,8 +228,17 @@ export class SpeechRecorderService {
     if (!this.isRecording) return;
     this.isRecording = false;
 
+    if (this.speechRecognition) {
+      try {
+        this.speechRecognition.stop();
+      } catch {}
+    }
+
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       try {
+        if (typeof this.mediaRecorder.requestData === 'function') {
+          this.mediaRecorder.requestData();
+        }
         this.mediaRecorder.stop();
       } catch (err) {
         console.warn('[SpeechRecorder] Error stopping MediaRecorder:', err);
@@ -197,6 +252,12 @@ export class SpeechRecorderService {
   public cancel(): void {
     this.isRecording = false;
     this.audioChunks = [];
+    this.nativeTranscript = '';
+    if (this.speechRecognition) {
+      try {
+        this.speechRecognition.stop();
+      } catch {}
+    }
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       try {
         this.mediaRecorder.onstop = null;
@@ -250,20 +311,23 @@ export class SpeechRecorderService {
         }
 
         const now = Date.now();
-        // Threshold for human speech volume
-        const isSpeaking = average > 12;
+        // Threshold for human speech volume (sensitive to normal conversational volume)
+        const isSpeaking = average > 5;
 
         if (isSpeaking) {
           speechStarted = true;
           silenceStartTime = 0;
         } else if (speechStarted) {
-          if (silenceStartTime === 0) {
-            silenceStartTime = now;
-          } else if (now - silenceStartTime >= silenceThresholdMs) {
-            console.log(`[SpeechRecorder] ${silenceThresholdMs}ms silence detected after speech. Auto-stopping.`);
-            if (onSilenceDetected) onSilenceDetected();
-            this.stop();
-            return;
+          // Allow at least 1.2s of recording before triggering silence stop
+          if (now - this.startTime > 1200) {
+            if (silenceStartTime === 0) {
+              silenceStartTime = now;
+            } else if (now - silenceStartTime >= silenceThresholdMs) {
+              console.log(`[SpeechRecorder] ${silenceThresholdMs}ms silence detected after speech. Auto-stopping.`);
+              if (onSilenceDetected) onSilenceDetected();
+              this.stop();
+              return;
+            }
           }
         }
 
@@ -292,6 +356,13 @@ export class SpeechRecorderService {
         this.audioContext.close();
       } catch {}
       this.audioContext = null;
+    }
+
+    if (this.speechRecognition) {
+      try {
+        this.speechRecognition.stop();
+      } catch {}
+      this.speechRecognition = null;
     }
 
     this.analyser = null;

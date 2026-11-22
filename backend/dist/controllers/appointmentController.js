@@ -282,6 +282,14 @@ export const deleteAppointment = async (req, res, next) => {
             res.status(404).json({ success: false, message: 'Appointment not found.' });
             return;
         }
+        if (apt.status === 'CANCELLED') {
+            res.json({
+                success: true,
+                data: apt,
+                message: 'Appointment is already cancelled.',
+            });
+            return;
+        }
         apt.status = 'CANCELLED';
         apt.updatedAt = new Date();
         // If it was linked to outreach, release slot

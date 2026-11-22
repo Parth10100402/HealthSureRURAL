@@ -94,7 +94,7 @@
           "parameters": [
             {
               "name": "X-HealthSure-Service-Key",
-              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183' }}"
+              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY }}"
             }
           ]
         },
@@ -120,7 +120,7 @@
           "parameters": [
             {
               "name": "X-HealthSure-Service-Key",
-              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183' }}"
+              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY }}"
             }
           ]
         },
@@ -172,7 +172,7 @@
           "parameters": [
             {
               "name": "X-HealthSure-Service-Key",
-              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183' }}"
+              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY }}"
             }
           ]
         },
@@ -198,7 +198,7 @@
           "parameters": [
             {
               "name": "X-HealthSure-Service-Key",
-              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183' }}"
+              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY }}"
             }
           ]
         },

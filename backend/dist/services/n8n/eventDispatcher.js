@@ -2,6 +2,7 @@
 // backend/src/services/n8n/eventDispatcher.ts
 import crypto from 'crypto';
 import { config } from '../../config/env.js';
+import { getPrisma } from '../../db/prisma.js';
 class EventOutboxService {
     outbox = [];
     seenIdempotencyKeys = new Set();
@@ -41,19 +42,22 @@ class EventOutboxService {
      * Compute HMAC SHA-256 signature for payload verification
      */
     generateHmacSignature(payloadString) {
-        const secret = config.N8N_WEBHOOK_SECRET || 'hs_sec_99a81f3b72ce4e82b7041dc8394e1';
+        const secret = config.N8N_WEBHOOK_SECRET?.trim() || '';
+        if (!secret)
+            return '';
         return crypto.createHmac('sha256', secret).update(payloadString).digest('hex');
     }
     /**
      * Emit a domain event.
-     * Atomically records the event into outbox and asynchronously dispatches to n8n webhook.
+     * Atomically records the event into transactional outbox (Prisma + Memory)
+     * and asynchronously dispatches to n8n webhook when enabled.
      */
     async emit(eventType, payload, customIdempotencyKey) {
         const eventId = `evt-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
         const idempotencyKey = customIdempotencyKey ||
             payload?.idempotencyKey ||
             `${eventType}-${payload?.id || payload?.appointmentId || payload?.referralId || payload?.sessionId || eventId}`;
-        // Deduplication check
+        // Deduplication check: in-memory first
         if (this.seenIdempotencyKeys.has(idempotencyKey)) {
             const existing = this.outbox.find((e) => e.idempotencyKey === idempotencyKey);
             if (existing) {
@@ -61,7 +65,38 @@ class EventOutboxService {
                 return existing;
             }
         }
+        const prisma = getPrisma();
+        if (prisma && prisma.outboxEvent) {
+            try {
+                const dbExisting = await prisma.outboxEvent.findUnique({
+                    where: { idempotencyKey },
+                });
+                if (dbExisting) {
+                    console.log(`[EventOutbox] Database duplicate event suppressed (IdempotencyKey: ${idempotencyKey})`);
+                    this.seenIdempotencyKeys.add(idempotencyKey);
+                    return {
+                        id: dbExisting.id,
+                        eventId: dbExisting.eventId,
+                        eventType: dbExisting.eventType,
+                        idempotencyKey: dbExisting.idempotencyKey,
+                        timestamp: dbExisting.timestamp.toISOString(),
+                        payload: JSON.parse(dbExisting.payload),
+                        status: dbExisting.status,
+                        attempts: dbExisting.attempts,
+                        lastAttemptAt: dbExisting.lastAttemptAt?.toISOString(),
+                        deliveredAt: dbExisting.deliveredAt?.toISOString(),
+                        error: dbExisting.error || undefined,
+                    };
+                }
+            }
+            catch (dbErr) {
+                console.warn('[EventOutbox] Idempotency DB check skipped:', dbErr);
+            }
+        }
         this.seenIdempotencyKeys.add(idempotencyKey);
+        // Initial status determined by n8n activation state
+        const initialStatus = config.N8N_ENABLED ? 'PENDING' : 'MOCKED';
+        const initialError = !config.N8N_ENABLED ? 'n8n integration disabled (mock delivery)' : undefined;
         const event = {
             id: eventId,
             eventId,
@@ -69,41 +104,66 @@ class EventOutboxService {
             idempotencyKey,
             timestamp: new Date().toISOString(),
             payload,
-            status: 'PENDING',
+            status: initialStatus,
             attempts: 0,
+            error: initialError,
         };
+        // 1. Transactional persistence in PostgreSQL/Prisma
+        if (prisma && prisma.outboxEvent) {
+            try {
+                await prisma.outboxEvent.create({
+                    data: {
+                        eventId: event.eventId,
+                        eventType: event.eventType,
+                        idempotencyKey: event.idempotencyKey,
+                        timestamp: new Date(event.timestamp),
+                        payload: JSON.stringify(event.payload),
+                        status: event.status,
+                        attempts: event.attempts,
+                        error: event.error || null,
+                    },
+                });
+            }
+            catch (persistErr) {
+                console.warn('[EventOutbox] Persistent outbox save fallback to memory:', persistErr);
+            }
+        }
+        // 2. In-memory outbox mirror
         this.outbox.unshift(event);
         if (this.outbox.length > this.maxOutboxSize) {
             this.outbox.pop();
         }
-        console.log(`[EventOutbox] Emitted ${eventType} (ID: ${eventId}, Key: ${idempotencyKey})`);
-        // Non-blocking dispatch to n8n webhook
-        this.dispatchWithRetry(event).catch((err) => {
-            console.warn(`[EventOutbox] Unhandled dispatch error for ${event.id}:`, err?.message || err);
-        });
+        console.log(`[EventOutbox] Emitted ${eventType} [${event.status}] (ID: ${eventId}, Key: ${idempotencyKey})`);
+        // 3. Dispatch to n8n if integration is enabled
+        if (config.N8N_ENABLED) {
+            this.dispatchWithRetry(event).catch((err) => {
+                console.warn(`[EventOutbox] Unhandled dispatch error for ${event.id}:`, err?.message || err);
+            });
+        }
         return event;
     }
     /**
      * Asynchronously send event to n8n webhook with exponential backoff retries.
-     * Graceful fallback: If n8n is offline or disabled, marks event FAILED without blocking backend operations.
+     * Truthful delivery status: NEVER marks MOCKED events as DELIVERED.
      */
     async dispatchWithRetry(event) {
         const webhookUrl = this.getWebhookUrlForEvent(event.eventType);
-        if (!config.N8N_ENABLED && process.env.NODE_ENV !== 'test') {
-            event.status = 'DELIVERED';
-            event.deliveredAt = new Date().toISOString();
+        if (!config.N8N_ENABLED) {
+            event.status = 'MOCKED';
             event.error = 'n8n integration disabled (mock delivery)';
+            await this.syncEventToDatabase(event);
             return;
         }
         if (!webhookUrl) {
             event.status = 'FAILED';
             event.error = 'No webhook URL configured for event type';
+            await this.syncEventToDatabase(event);
             return;
         }
         const payloadString = JSON.stringify(event);
         const signature = this.generateHmacSignature(payloadString);
         const maxAttempts = 3;
-        let attempt = 0;
+        let attempt = event.attempts || 0;
         let success = false;
         while (attempt < maxAttempts && !success) {
             attempt++;
@@ -156,6 +216,40 @@ class EventOutboxService {
                 }
             }
         }
+        await this.syncEventToDatabase(event);
+    }
+    /**
+     * Synchronize event state updates back into PostgreSQL Outbox table
+     */
+    async syncEventToDatabase(event) {
+        const prisma = getPrisma();
+        if (!prisma || !prisma.outboxEvent)
+            return;
+        try {
+            await prisma.outboxEvent.updateMany({
+                where: { eventId: event.eventId },
+                data: {
+                    status: event.status,
+                    attempts: event.attempts,
+                    lastAttemptAt: event.lastAttemptAt ? new Date(event.lastAttemptAt) : null,
+                    deliveredAt: event.deliveredAt ? new Date(event.deliveredAt) : null,
+                    error: event.error || null,
+                },
+            });
+        }
+        catch (syncErr) {
+            console.warn('[EventOutbox] DB status sync skipped:', syncErr);
+        }
+    }
+    /**
+     * Process pending retries for any events in RETRYING or PENDING status
+     */
+    async processPendingRetries() {
+        const pendingEvents = this.outbox.filter((e) => (e.status === 'RETRYING' || e.status === 'PENDING') && e.attempts < 3);
+        for (const evt of pendingEvents) {
+            await this.dispatchWithRetry(evt);
+        }
+        return pendingEvents.length;
     }
     /**
      * Retrieve all outbox events with optional filtering
@@ -182,12 +276,13 @@ class EventOutboxService {
     getObservabilityMetrics() {
         const totalProcessed = this.outbox.length;
         const successful = this.outbox.filter((e) => e.status === 'DELIVERED').length;
+        const mocked = this.outbox.filter((e) => e.status === 'MOCKED').length;
         const failed = this.outbox.filter((e) => e.status === 'FAILED').length;
         const retried = this.outbox.filter((e) => e.attempts > 1).length;
         const pending = this.outbox.filter((e) => e.status === 'PENDING' || e.status === 'RETRYING').length;
         const lastExecutionByWorkflow = {};
         for (const evt of this.outbox) {
-            if (evt.status === 'DELIVERED') {
+            if (evt.status === 'DELIVERED' || evt.status === 'MOCKED') {
                 const wf = this.getWorkflowNameForEvent(evt.eventType);
                 if (!lastExecutionByWorkflow[wf]) {
                     lastExecutionByWorkflow[wf] = evt.deliveredAt || evt.timestamp;
@@ -197,6 +292,7 @@ class EventOutboxService {
         return {
             totalProcessed,
             successful,
+            mocked,
             failed,
             retried,
             pending,

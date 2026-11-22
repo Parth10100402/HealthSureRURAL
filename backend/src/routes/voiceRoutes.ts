@@ -14,12 +14,8 @@ import { authenticate } from '../middleware/authMiddleware.js';
 const router = Router();
 
 // Internal server-side credential resolver (never exposed to frontend)
-const _K_PARTS = ['NzQyNTQ0N2I1MDY0OWIzZQ==', 'OTczNjc5NzhkYmQ0MGMxYQ==', 'ZTZjOGQ2MGQ='];
 const resolveServerApiKey = (): string => {
-  if (process.env.DEEPGRAM_API_KEY && process.env.DEEPGRAM_API_KEY.trim()) {
-    return process.env.DEEPGRAM_API_KEY.trim();
-  }
-  return _K_PARTS.map((p) => Buffer.from(p, 'base64').toString('utf8')).join('');
+  return (process.env.DEEPGRAM_API_KEY && process.env.DEEPGRAM_API_KEY.trim()) || '';
 };
 
 /**
@@ -72,6 +68,7 @@ const handleSpeechToText = async (req: Request, res: Response) => {
   try {
     console.log(`[STT] Transcribing audio (${audioBuffer.length} bytes, type: ${cleanContentType}, lang: ${lang || 'auto'})...`);
 
+    // Tier A: Nova-3 with detected clean content type
     let dgUrl = `https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true${langParam}`;
     let dgResponse = await fetch(dgUrl, {
       method: 'POST',
@@ -82,18 +79,19 @@ const handleSpeechToText = async (req: Request, res: Response) => {
       body: audioBuffer,
     });
 
+    // Tier B: Nova-3 without explicit Content-Type header (Deepgram auto-detects container)
     if (!dgResponse.ok) {
-      console.warn('[STT] Primary Nova-3 attempt failed, retrying with raw Content-Type...');
+      console.warn('[STT] Primary Nova-3 attempt failed, retrying with container auto-detection...');
       dgResponse = await fetch(dgUrl, {
         method: 'POST',
         headers: {
           Authorization: `Token ${apiKey}`,
-          'Content-Type': rawContentType,
         },
         body: audioBuffer,
       });
     }
 
+    // Tier C: General model fallback
     if (!dgResponse.ok) {
       console.warn('[STT] Retrying with general model fallback...');
       dgUrl = `https://api.deepgram.com/v1/listen?model=general&smart_format=true${langParam}`;

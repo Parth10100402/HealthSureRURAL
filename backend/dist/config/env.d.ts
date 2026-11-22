@@ -5,6 +5,7 @@ export declare const config: {
     JWT_EXPIRES_IN: string;
     DATABASE_URL: string;
     FRONTEND_URL: string;
+    DEEPGRAM_API_KEY: string;
     DEMO_MODE: boolean;
     SMS_PROVIDER: string;
     SMS_API_KEY: string;

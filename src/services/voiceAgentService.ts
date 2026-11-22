@@ -162,6 +162,7 @@ export class VoiceAgentService {
     text: string,
     language?: VoiceLanguage
   ): Promise<{
+    intent?: string;
     spokenResponse: string;
     actionCard?: VoiceConversationTurn['actionCard'];
     navigateUrl?: string;
@@ -201,9 +202,36 @@ export class VoiceAgentService {
       return this.handleEmergency();
     }
 
-    // 6. What can you do / Capabilities Help
-    if (/\b(what can you do|kya kar sakte ho|features|capabilities|madad chahiye|options batao|help me)\b/i.test(lower)) {
+    // 6. Language Switch Intent
+    if (/\b(switch to english|english mein baat|speak in english|english please|english mein switch)\b/i.test(lower)) {
+      this.language = 'en';
+      this.state.intent = 'LANGUAGE_SWITCH';
+      const spoken = 'Switched to English. How can I assist you with your healthcare today?';
+      this.recordAgentResponse(spoken);
+      return { intent: 'LANGUAGE_SWITCH', spokenResponse: spoken, state: this.getState() };
+    }
+    if (/\b(switch to hindi|hindi mein baat|speak in hindi|hindi please|hindi mein bolo|hindi mein switch)\b/i.test(lower)) {
+      this.language = 'hi';
+      this.state.intent = 'LANGUAGE_SWITCH';
+      const spoken = 'Hindi bhasha chun li gayi hai. Aaj main aapki healthcare mein kya madad kar sakta hoon?';
+      this.recordAgentResponse(spoken);
+      return { intent: 'LANGUAGE_SWITCH', spokenResponse: spoken, state: this.getState() };
+    }
+
+    // 6b. What can you do / Capabilities Help
+    if (/\b(what can you do|kya kar sakte ho|features|capabilities|madad chahiye|options batao|help me|kaunse languages samajh sakte ho|understand both hindi and english)\b/i.test(lower)) {
       return this.handleCapabilitiesHelp();
+    }
+
+    // 6c. General Healthcare Assistance & Platform Knowledge
+    if (/\b(healthsure kya hai|what is healthsure|how to book|appointment kaise book|benefits of specialist|rural healthcare benefits|ayushman bharat|helpline|support desk|07314624692|human support|simpler words|wrong date|galat date)\b/i.test(lower)) {
+      return this.handleGeneralHealthcareHelp(lower);
+    }
+
+    // 6d. Healthcare Facilities & Access (Category 6)
+    if (/\b(facilit(y|ies)|healthcare centres?|government health|government hospitals?|nearest phc|nearby phc|khed phc|phc khed|phc chiplun|phc dapoli|phc guhagar|district hospital|hospital address|contact phone|operating hours|facility timings|opd timings|phc aur chc|difference between phc|which hospital|which facility|primary health centre|phc par basic|hospital referral kaise|hospital referral work|operational status|nearest government hospital|kis hospital mein|kis facility|ambulance|emergency ward|specialist doctors kis hospital|specialized heart care)\b/i.test(lower) &&
+        !lower.includes('available doctor') && !lower.includes('book') && !lower.includes('booking')) {
+      return await this.handleFacilityQuery(lower);
     }
 
     // 7. Awaiting Confirmation Handling
@@ -229,40 +257,44 @@ export class VoiceAgentService {
     this.extractSlotsAndEntities(trimmed);
 
     // 10. Rescheduling Intent
-    if (/\b(reschedule|shift|badal do|aage badha do|change time|change date|dusre din|agla slot|time change)\b/i.test(lower)) {
+    if (/\b(reschedule|shift|badal do|aage badha do|change time|change date|dusre din|agla slot|time change|ko.*kar do|change to)\b/i.test(lower)) {
       return await this.handleRescheduleIntent(lower);
     }
 
     // 11. Cancellation Intent
-    if (/\b(cancel|radd|hata do|delete appointment|appointment cancel|nahi jana)\b/i.test(lower)) {
+    if (/\b(cancel|radd|hata do|delete appointment|appointment cancel|cancellation|nahi jana|delete booking|booking delete)\b/i.test(lower)) {
       return await this.handleCancellationIntent(lower);
     }
 
     // 12. Teleconsultation Intent (Video call, online doctor, teleconsult)
     if (
-      /\b(video|teleconsult|teleconsultation|online doctor|call doctor|video call|doctor se baat)\b/i.test(lower) &&
-      !/\b(kaun|who|available|uplabdh|milenge|availability|doctors? ki list)\b/i.test(lower)
+      /\b(video|teleconsult|teleconsultation|online doctor|call doctor|video call|doctor se baat|doctor online|remotely|waiting room|teleconsultation room|camera aur microphone|benefits of specialist teleconsultation)\b/i.test(lower) &&
+      !/\b(kaun kaun|doctors? ki list)\b/i.test(lower)
     ) {
       return await this.handleTeleconsultationQuery(lower);
     }
 
     // 13. Specialist Outreach Camps (Outreach, camp, MMU, gaav)
-    if (/\b(outreach|camp|camps|mmu|mobile medical|specialist visit|gaav mein|phc camp)\b/i.test(lower)) {
+    if (/\b(outreach|camp|camps|mmu|mobile medical|specialist visit|gaav mein|phc camp|gaav kab|village camp)\b/i.test(lower)) {
       return await this.handleOutreachQuery(lower);
     }
 
     // 14. Follow-up Queries
-    if (/\b(follow-?ups?|follow up|agla checkup|dobara dikhana|review date)\b/i.test(lower)) {
+    if (/\b(follow-?ups?|follow up|agla checkup|dobara dikhana|review date|follow-up recommended)\b/i.test(lower)) {
       return await this.handleFollowUpQuery();
     }
 
     // 15. Referrals Tracking
-    if (/\b(referral|refer|status of referral|hospital refer|bade hospital refer)\b/i.test(lower)) {
+    if (/\b(referral|refer|status of referral|hospital refer|bade hospital refer|hospital transfer|priority level)\b/i.test(lower)) {
       return await this.handleReferralQuery(lower);
     }
 
-    // 16. Health Records, Reports, Prescriptions
-    if (/\b(record|records|report|reports|prescription|prescriptions|dawai|dawa|parchi|diagnosis|medical history)\b/i.test(lower)) {
+    // 16. Health Records, Reports, Prescriptions, Consultations, History & Vitals
+    if (
+      /\b(record|records|report|reports|prescription|prescriptions|dawai|dawa|parchi|diagnosis|medical history|consultations?|consultation history|examinations?|health examination|last consultation|recent consultation|past consultation|latest consultation|vitals|heart rate|sugar level|blood pressure|dosage|medication|clinical instructions?|advice|doctor ne.*advice|ecg diagnostic|diagnostics? results?)\b/i.test(lower) &&
+      !lower.includes('book') &&
+      !lower.includes('booking')
+    ) {
       return await this.handleHealthRecordsQuery(lower);
     }
 
@@ -276,22 +308,31 @@ export class VoiceAgentService {
       return await this.handleMedicinesQuery();
     }
 
-    // 19. Patient Profile & ABHA Query
-    if (/\b(profile|mera naam|abha|abha id|patient id|mera address|mera mobile|meri details)\b/i.test(lower)) {
+    // 19. Patient Profile & ABHA Query (excluding doctor profile queries)
+    if (
+      /\b(profile|mera naam|abha|abha id|patient id|mera address|mera mobile|meri details)\b/i.test(lower) &&
+      !lower.includes('dr.') &&
+      !lower.includes('dr ') &&
+      !lower.includes('doctor') &&
+      !lower.includes('rahul') &&
+      !lower.includes('ananya') &&
+      !lower.includes('amit')
+    ) {
+      this.state.intent = 'PATIENT_PROFILE';
       return await this.handleProfileQuery();
     }
 
     // 20. Specific Existing Appointment Queries (Today, Tomorrow, Status, Token, Date/Time, Location)
     if (
-      /\b(meri appointment|my appointment|next appointment|agli appointment|aaj ki appointment|kal ki appointment|appointments? status|token|kab hai|kis din hai|kis time|time kya hai|doctor kaun hai|kahan par hai|room number)\b/i.test(lower) &&
-      !lower.includes('book') &&
-      !lower.includes('slot')
+      /\b(meri appointments?|my appointments?|next appointments?|agli appointments?|aaj ki appointments?|kal ki appointments?|upcoming appointments?|scheduled appointments?|previous appointments?|pichhli appointments?|cancelled appointments?|appointments? status|all my upcoming|saare upcoming|active bookings?|bookings? list|past completed|completed appointments?|token|kab hai|kis din hai|kis time|time kya hai|doctor kaun hai|kahan par hai|do i have an appointment|is my appointment|kya appointment confirm|appointment details|booking details)\b/i.test(lower) &&
+      !lower.includes('book karo') &&
+      !lower.includes('confirm karo')
     ) {
       return await this.handleSpecificAppointmentQuery(lower);
     }
 
     // 21. Available Slots Discovery (When a doctor is selected or asking for slots for a doctor)
-    const isBookingRequest = /\b(book|appointment lena|milna hai|dikhana hai|checkup karwana|fix karo|kar do|appointment chahiye)\b/i.test(lower) || this.state.intent === 'BOOK_APPOINTMENT';
+    const isBookingRequest = /\b(book|appointment lena|milna hai|dikhana hai|checkup karwana|fix karo|kar do|appointment chahiye|arrange.*appointment|need.*appointment|appointment arrange|arrange a morning|proceed with booking)\b/i.test(lower) || this.state.intent === 'BOOK_APPOINTMENT';
 
     const isSlotQueryForDoctor =
       Boolean(this.state.selectedDoctor) &&
@@ -309,7 +350,7 @@ export class VoiceAgentService {
 
     // 23. Doctor / Specialist Discovery Intent
     const isDoctorDiscoveryQuery =
-      /\b(dr|doctors?|specialists?|specialt(y|ies)|cardiologist|physician|gynecologist|pediatrician|dermatologist|orthopedic|ent|neurologist|ophthalmologist|pulmonologist|psychiatrist|heart|dil|bukhar|skin|haddi|kaan|dimag|aankh|phephde|kaun kaun|who is available|available doctors)\b/i.test(lower) ||
+      /\b(dr\.?|doctors?|specialists?|specialt(y|ies)|cardiologists?|physicians?|gynecologists?|pediatricians?|dermatologists?|orthopedics?|ent|neurologists?|ophthalmologists?|pulmonologists?|psychiatrists?|endocrinologists?|diabetes|sugar|heart|dil|bukhar|skin|haddi|kaan|dimag|aankh|phephde|kaun kaun|who is available|available doctors|profile|qualification|designation|find general|schedule of neurologists?|room number|qualification)\b/i.test(lower) ||
       (/\b(kaunse|kaun sa|kaun|who)\b.*\b(doctor|specialist|milenge|available|slots?)\b/i.test(lower)) ||
       (/\b(appointment|available|mileg[ia]|aayeng[ei]|kab mileng[ei]|kab aayeng[ei]|availability|uplabdh|free)\b/i.test(lower) && Boolean(this.state.selectedDoctor || this.state.dateDisplay || this.state.dateStr || lower.includes('phc') || lower.includes('khed') || lower.includes('ratnagiri') || lower.includes('teleconsultation') || lower.includes('video') || lower.includes('weekend'))) ||
       (/\b(11|10|9|09|12|1|2|3|4)\s*baje\b/i.test(lower) && (lower.includes('doctor') || lower.includes('khali') || lower.includes('slot') || lower.includes('kaun')));
@@ -319,7 +360,7 @@ export class VoiceAgentService {
     }
 
     // 24. General Slot Discovery fallback
-    if (!isBookingRequest && (/\b(slots?|free time|kab free|earliest|subah ka slot|shaam ka slot|dopahar ka slot|available time)\b/i.test(lower))) {
+    if (!isBookingRequest && (/\b(slots?|free time|kab free|earliest|subah ka slot|shaam ka slot|dopahar ka slot|available time|occupied hai ya|appointment possible|open for this doctor|doctor se mil sakte hain|agla slot batao)\b/i.test(lower))) {
       return await this.handleSlotDiscovery(lower);
     }
 
@@ -330,6 +371,112 @@ export class VoiceAgentService {
 
     this.recordAgentResponse(spoken);
     return { spokenResponse: spoken, state: this.getState() };
+  }
+
+  // ── Healthcare Facilities & Access (Category 6) ─────────────────────────
+  public async handleFacilityQuery(lower: string) {
+    this.state.intent = 'FACILITIES_ACCESS';
+    const facilities = [
+      { name: 'PHC Khed', type: 'PHC', district: 'Ratnagiri', taluka: 'Khed', phone: '02356-260124', timing: '09:00 AM - 02:00 PM, 04:00 PM - 06:00 PM (Emergency 24x7)', specialties: ['General Medicine', 'Maternal Care', 'Pediatrics'] },
+      { name: 'PHC Chiplun', type: 'PHC', district: 'Ratnagiri', taluka: 'Chiplun', phone: '02355-252110', timing: '09:00 AM - 02:00 PM (Emergency 24x7)', specialties: ['General Medicine', 'Family Welfare'] },
+      { name: 'PHC Dapoli', type: 'PHC', district: 'Ratnagiri', taluka: 'Dapoli', phone: '02358-282120', timing: '09:00 AM - 02:00 PM (Emergency 24x7)', specialties: ['General Medicine', 'Outreach Clinic'] },
+      { name: 'PHC Guhagar', type: 'PHC', district: 'Ratnagiri', taluka: 'Guhagar', phone: '02359-240215', timing: '09:00 AM - 02:00 PM (Emergency 24x7)', specialties: ['General Medicine', 'Immunization'] },
+      { name: 'District Hospital Ratnagiri', type: 'District Hospital', district: 'Ratnagiri', taluka: 'Ratnagiri', phone: '02352-222300', timing: '24x7 Emergency & Tertiary Care', specialties: ['Cardiology', 'Pediatrics', 'Ophthalmology', 'Pulmonology', 'Dermatology', 'Orthopedics', 'ICU'] },
+      { name: 'District Hospital Pune', type: 'District Hospital', district: 'Pune', taluka: 'Haveli', phone: '020-26127393', timing: '24x7 Advanced Care', specialties: ['Cardiology', 'General Medicine', 'Psychiatry', 'ENT'] },
+      { name: 'Sub-District Hospital Sawantwadi', type: 'Sub-District Hospital', district: 'Sindhudurg', taluka: 'Sawantwadi', phone: '02363-272024', timing: '24x7 Emergency & Surgery', specialties: ['General Surgery', 'ENT', 'Gynecology'] }
+    ];
+
+    let spoken = '';
+    if (lower.includes('difference') || lower.includes('farak') || lower.includes('antar') || (lower.includes('phc') && lower.includes('chc'))) {
+      spoken = this.language === 'hi'
+        ? 'PHC (Primary Health Centre) 20,000 se 30,000 rural aabadi ke liye basic treatment aur maternal care deta hai. CHC (Community Health Centre) 80,000 se 1,20,000 logon ke liye 30 beds aur 4 specialists ke saath secondary care pradan karta hai. Badi bimariyon ke liye District Hospital refer kiya jata hai.'
+        : 'A PHC provides primary healthcare for 20,000-30,000 population. A CHC has 30 beds and 4 specialists covering 80,000-120,000 people. Advanced cases are referred to District Hospitals.';
+    } else if (lower.includes('cardio') || lower.includes('heart') || lower.includes('dil')) {
+      spoken = this.language === 'hi'
+        ? 'Cardiology services District Hospital Ratnagiri aur District Hospital Pune mein uplabdh hain, jahan Dr. Ananya Mehta aur Dr. Amit Deshmukh available hain.'
+        : 'Cardiology services are available at District Hospital Ratnagiri and District Hospital Pune with Dr. Ananya Mehta and Dr. Amit Deshmukh.';
+    } else if (lower.includes('timing') || lower.includes('hours') || lower.includes('kab khulta')) {
+      spoken = this.language === 'hi'
+        ? 'PHC centres subah 09:00 AM se dopahar 02:00 PM tak aur shaam 04:00 PM se 06:00 PM tak open rehte hain. District Hospital ki Emergency aur Casualty 24 ghante khuli rehti hai.'
+        : 'PHC OPD runs 09:00 AM to 02:00 PM and 04:00 PM to 06:00 PM. District Hospital emergency departments are open 24x7.';
+    } else if (lower.includes('khed')) {
+      spoken = this.language === 'hi'
+        ? 'PHC Khed, Ratnagiri district ke Khed taluka mein sthit hai. Yahan Dr. Rajesh Patil uplabdh hain aur helpline number 02356-260124 hai.'
+        : 'PHC Khed is located in Khed taluka, Ratnagiri district. Dr. Rajesh Patil is available here. Contact: 02356-260124.';
+    } else if (lower.includes('ratnagiri')) {
+      spoken = this.language === 'hi'
+        ? 'District Hospital Ratnagiri ek tertiary care facility hai jahan ICU, Cardiology, aur emergency uplabdh hai. Contact: 02352-222300.'
+        : 'District Hospital Ratnagiri is a tertiary facility with ICU, Cardiology, and 24x7 emergency. Contact: 02352-222300.';
+    } else if (lower.includes('pune')) {
+      spoken = this.language === 'hi'
+        ? 'District Hospital Pune, regional specialist referral centre hai. Contact: 020-26127393.'
+        : 'District Hospital Pune is our regional referral centre. Contact: 020-26127393.';
+    } else if (lower.includes('chiplun')) {
+      spoken = this.language === 'hi'
+        ? 'PHC Chiplun, Chiplun taluka mein primary health services pradan karta hai. Contact: 02355-252110.'
+        : 'PHC Chiplun provides primary healthcare services in Chiplun. Contact: 02355-252110.';
+    } else if (lower.includes('sawantwadi')) {
+      spoken = this.language === 'hi'
+        ? 'Sub-District Hospital Sawantwadi Sindhudurg district mein sthit hai, jahan General Surgery aur ENT services hain. Contact: 02363-272024.'
+        : 'Sub-District Hospital Sawantwadi is in Sindhudurg district providing surgery and ENT care. Contact: 02363-272024.';
+    } else if (lower.includes('dapoli')) {
+      spoken = this.language === 'hi'
+        ? 'PHC Dapoli coastal rural population ko healthcare deta hai. Contact: 02358-282120.'
+        : 'PHC Dapoli serves coastal communities in Dapoli. Contact: 02358-282120.';
+    } else if (lower.includes('guhagar')) {
+      spoken = this.language === 'hi'
+        ? 'PHC Guhagar, Guhagar taluka mein basic healthcare aur immunization deta hai. Contact: 02359-240215.'
+        : 'PHC Guhagar provides primary care in Guhagar taluka. Contact: 02359-240215.';
+    } else {
+      spoken = this.language === 'hi'
+        ? 'HealthSure network mein PHC Khed, Chiplun, Dapoli, Guhagar aur District Hospital Ratnagiri, Pune aur Sawantwadi shamil hain. Emergency ke liye 108 dial karein.'
+        : 'The HealthSure network includes PHCs at Khed, Chiplun, Dapoli, Guhagar, and District Hospitals in Ratnagiri, Pune, and Sawantwadi. For emergencies, dial 108.';
+    }
+
+    const card = { type: 'DOCTOR_LIST' as const, data: { facilities } };
+    this.recordAgentResponse(spoken, card);
+    return { intent: 'FACILITIES_ACCESS', spokenResponse: spoken, actionCard: card, state: this.getState() };
+  }
+
+  // ── General Healthcare Assistance (Category 10) ──────────────────────────
+  public handleGeneralHealthcareHelp(lower: string) {
+    this.state.intent = 'GENERAL_ASSISTANCE';
+    let spoken = '';
+
+    if (lower.includes('healthsure kya hai') || lower.includes('what is healthsure') || lower.includes('rural healthcare benefits')) {
+      spoken = this.language === 'hi'
+        ? 'HealthSure ek rural healthcare continuity platform hai jo gaon ke marizon ko PHC, district specialists, video teleconsultation aur outreach camps se jodta hai.'
+        : 'HealthSure is a rural healthcare continuity platform connecting village patients with PHCs, district specialists, teleconsultations, and outreach camps.';
+    } else if (lower.includes('how to book') || lower.includes('kaise book')) {
+      spoken = this.language === 'hi'
+        ? 'Appointment book karne ke liye aap bol sakte hain: "Friday ko Dr. Ananya ke saath appointment book karo", ya screen par date aur slot select karke confirm karein.'
+        : 'To book an appointment, say: "Book appointment with Dr. Ananya on Friday", or select your preferred date and slot on screen.';
+    } else if (lower.includes('executive') || lower.includes('support desk') || lower.includes('07314624692') || lower.includes('human support') || lower.includes('helpline')) {
+      spoken = this.language === 'hi'
+        ? 'HealthSure support desk helpline number +91 07314624692 hai. Hamare executive subah 8 baje se shaam 8 baje tak sahayata ke liye uplabdh hain.'
+        : 'The HealthSure support desk helpline is +91 07314624692, available 8 AM to 8 PM daily for patient support.';
+    } else if (lower.includes('abha') || lower.includes('card')) {
+      spoken = this.language === 'hi'
+        ? 'ABHA (Ayushman Bharat Health Account) aapki 14-digit digital health ID hai jisse aapke saare prescriptions aur lab reports surakshit link rehte hain.'
+        : 'ABHA (Ayushman Bharat Health Account) is your 14-digit digital health ID securely linking all your clinical records and prescriptions.';
+    } else if (lower.includes('wrong date') || lower.includes('galat date') || lower.includes('change karo')) {
+      this.state.dateStr = null;
+      this.state.dateDisplay = null;
+      spoken = this.language === 'hi'
+        ? 'Theek hai, maine purani date clear kar di hai. Kripya apni nayi pasandeeda date ya din bataiye.'
+        : 'Cleared the previous date. Please tell me your preferred new date or weekday.';
+    } else if (lower.includes('simpler words') || lower.includes('samajh nahi')) {
+      spoken = this.language === 'hi'
+        ? 'Saral shabdon mein: Aap mujhse doctor ki availability pooch sakte hain, appointment book kar sakte hain, ya apne purane ilaaj ke reports dekh sakte hain.'
+        : 'In simple terms: You can ask me to find doctors, book consultation slots, check hospital referrals, or view your medical prescriptions.';
+    } else {
+      spoken = this.language === 'hi'
+        ? 'HealthSure Voice Assistant aapki sewa mein hai. Aap doctor availability, appointment booking, referrals aur health records ke baare mein bol sakte hain.'
+        : 'HealthSure Voice Assistant is here to help with doctor discovery, appointment booking, hospital referrals, and medical records.';
+    }
+
+    this.recordAgentResponse(spoken);
+    return { intent: 'GENERAL_ASSISTANCE', spokenResponse: spoken, state: this.getState() };
   }
 
   // ── Affirmation & Negation Check ──────────────────────────────────────────
@@ -352,7 +499,7 @@ export class VoiceAgentService {
 
   // ── Navigation Handler ───────────────────────────────────────────────────
 
-  private detectNavigation(lower: string): { spokenResponse: string; navigateUrl: string; state: VoiceConversationState } | null {
+  private detectNavigation(lower: string): { intent?: string; spokenResponse: string; navigateUrl: string; state: VoiceConversationState } | null {
     const routes: Array<{ regex: RegExp; url: string; hi: string; en: string }> = [
       { regex: /\b(dashboard|mukhya prishth)\b.*\b(kholo|open|chalo|navigate)\b|\b(dashboard kholo|open dashboard|home page)\b/i, url: '/patient/dashboard', hi: 'Dashboard khol raha hoon.', en: 'Opening Dashboard.' },
       { regex: /\bappointments?\b.*\b(kholo|open|chalo|page|dikhao)\b/i, url: '/patient/appointments', hi: 'Appointments page khol raha hoon.', en: 'Opening Appointments page.' },
@@ -370,7 +517,8 @@ export class VoiceAgentService {
       if (r.regex.test(lower)) {
         const resp = this.language === 'hi' ? r.hi : r.en;
         this.recordAgentResponse(resp);
-        return { spokenResponse: resp, navigateUrl: r.url, state: this.getState() };
+        this.state.intent = 'APP_NAVIGATION';
+        return { intent: 'APP_NAVIGATION', spokenResponse: resp, navigateUrl: r.url, state: this.getState() };
       }
     }
     return null;
@@ -379,37 +527,42 @@ export class VoiceAgentService {
   // ── Conversational Controls ──────────────────────────────────────────────
 
   private handleRepeat() {
+    this.state.intent = 'REPEAT';
     const resp = this.state.lastSpokenResponse || (this.language === 'hi' ? 'Maine pehle koi jawab nahi diya hai.' : 'I have not provided an earlier response yet.');
     this.recordAgentResponse(resp);
-    return { spokenResponse: resp, state: this.getState() };
+    return { intent: 'REPEAT', spokenResponse: resp, state: this.getState() };
   }
 
   private handleGoBack() {
+    this.state.intent = 'GO_BACK';
     const resp = this.language === 'hi' ? 'Pichhle page par le ja raha hoon.' : 'Taking you back to the previous screen.';
     this.recordAgentResponse(resp);
-    return { spokenResponse: resp, navigateUrl: '/patient/dashboard', state: this.getState() };
+    return { intent: 'GO_BACK', spokenResponse: resp, navigateUrl: '/patient/dashboard', state: this.getState() };
   }
 
   private handleCloseAssistant() {
+    this.state.intent = 'CLOSE_ASSISTANT';
     const resp = this.language === 'hi' ? 'Voice assistant band kar raha hoon. Dhanyawaad!' : 'Closing voice assistant. Thank you!';
     this.recordAgentResponse(resp);
-    return { spokenResponse: resp, navigateUrl: '', state: this.getState() };
+    return { intent: 'CLOSE_ASSISTANT', spokenResponse: resp, navigateUrl: '', state: this.getState() };
   }
 
   private handleCapabilitiesHelp() {
+    this.state.intent = 'CAPABILITIES_HELP';
     const resp = this.language === 'hi'
       ? 'HealthSure Voice Assistant se aap: 1. Doctors dhoondh sakte hain, 2. Appointments book, cancel ya reschedule kar sakte hain, 3. Health records aur reports dekh sakte hain, 4. Referral status aur follow-up check kar sakte hain, 5. Video teleconsultation shuru kar sakte hain, aur 6. Emergency mein 108 ya helpline connect kar sakte hain.'
       : 'With HealthSure Voice Assistant, you can: 1. Find specialist doctors, 2. Book, cancel, or reschedule appointments, 3. View health records & prescriptions, 4. Track referrals & follow-ups, 5. Launch video teleconsultation, and 6. Access 108 Emergency SOS support.';
     this.recordAgentResponse(resp);
-    return { spokenResponse: resp, state: this.getState() };
+    return { intent: 'CAPABILITIES_HELP', spokenResponse: resp, state: this.getState() };
   }
 
-  private handleEmergency(): { spokenResponse: string; navigateUrl?: string; state: VoiceConversationState } {
+  private handleEmergency(): { intent: string; spokenResponse: string; navigateUrl?: string; state: VoiceConversationState } {
+    this.state.intent = 'EMERGENCY_SOS';
     const resp = this.language === 'hi'
       ? 'Emergency alert! Yadi aapko turant chikitsa sahayata chahiye toh 108 dial karein ya nazdeeki PHC emergency ward jayein. HealthSure 24x7 helpline 07314624692 par bhi call kar sakte hain.'
       : 'Emergency alert! If you need urgent medical care, please dial 108 immediately or visit your nearest PHC emergency room. HealthSure 24x7 helpline is 07314624692.';
     this.recordAgentResponse(resp);
-    return { spokenResponse: resp, navigateUrl: '/patient/help', state: this.getState() };
+    return { intent: 'EMERGENCY_SOS', spokenResponse: resp, navigateUrl: '/patient/help', state: this.getState() };
   }
 
   // ── Entity Extraction & Pronoun Resolution ────────────────────────────────
@@ -547,6 +700,9 @@ export class VoiceAgentService {
   private async handleDoctorDiscovery(lowerQuery: string = '') {
     const doctors = await patientService.getDoctors();
     let matched = [...doctors];
+    const isAvailability = lowerQuery.includes('available') || lowerQuery.includes('schedule') || lowerQuery.includes('uplabdh') || lowerQuery.includes('kab') || lowerQuery.includes('kis din') || lowerQuery.includes('aayenge') || lowerQuery.includes('milenge') || lowerQuery.includes('batao') || lowerQuery.includes('dikhao') || lowerQuery.includes('kaun') || lowerQuery.includes('who') || Boolean(this.state.dateDisplay);
+    const resolvedIntent = isAvailability ? 'DOCTOR_AVAILABILITY' : 'DOCTOR_DISCOVERY';
+    this.state.intent = resolvedIntent;
 
     // 1. Specialty filtering
     if (this.state.speciality) {
@@ -622,7 +778,7 @@ export class VoiceAgentService {
       this.state.candidateDoctors = targetDocs.map((d) => ({ ...d }));
       const card = { type: 'DOCTOR_LIST' as const, data: { doctors: targetDocs } };
       this.recordAgentResponse(spoken, card);
-      return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+      return { intent: this.state.intent || 'DOCTOR_AVAILABILITY', spokenResponse: spoken, actionCard: card, state: this.getState() };
     }
 
     this.state.candidateDoctors = matched.map((d) => ({ ...d }));
@@ -680,12 +836,13 @@ export class VoiceAgentService {
     };
 
     this.recordAgentResponse(spoken, card);
-    return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+    return { intent: this.state.intent || 'DOCTOR_AVAILABILITY', spokenResponse: spoken, actionCard: card, state: this.getState() };
   }
 
   // ── Slot Discovery ───────────────────────────────────────────────────────
 
   private async handleSlotDiscovery(lower: string) {
+    this.state.intent = 'APPOINTMENT_SLOT_QUERY';
     const doctorName = this.state.selectedDoctor || 'Dr. Ananya Mehta';
     const dayLabel = this.state.dateDisplay?.replace('Next ', '').replace(' (Weekend)', '').trim() || 'Wednesday';
 
@@ -720,19 +877,19 @@ export class VoiceAgentService {
           ? `${doctorName} ke liye ${dayLabel} ko ${this.state.timeStr} ka slot uplabdh hai. Hamare paas kul ${slots.length} slots uplabdh hain. Kya aap ise book karna chahte hain?`
           : `For ${doctorName} on ${dayLabel}, the ${this.state.timeStr} slot is available among ${slots.length} slots. Would you like to book it?`;
         this.recordAgentResponse(spoken);
-        return { spokenResponse: spoken, state: this.getState() };
+        return { intent: 'APPOINTMENT_SLOT_QUERY', spokenResponse: spoken, state: this.getState() };
       } else if (isOccupied) {
         const spoken = this.language === 'hi'
           ? `${doctorName} ke liye ${dayLabel} ko ${this.state.timeStr} ka slot occupied hai. Available slots hain: ${slots.slice(0, 3).join(', ')}. Kaunsa samay chahenge?`
           : `The ${this.state.timeStr} slot for ${doctorName} on ${dayLabel} is occupied. Available slots are: ${slots.slice(0, 3).join(', ')}. Which time would you prefer?`;
         this.recordAgentResponse(spoken);
-        return { spokenResponse: spoken, state: this.getState() };
+        return { intent: 'APPOINTMENT_SLOT_QUERY', spokenResponse: spoken, state: this.getState() };
       } else {
         const spoken = this.language === 'hi'
           ? `${doctorName} ke liye ${dayLabel} ko ${this.state.timeStr} ka slot uplabdh nahi hai. Kul ${slots.length} slots uplabdh hain jinme se mukhya hain: ${slots.slice(0, 3).join(', ')}. Aap kaunsa samay chahenge?`
           : `The ${this.state.timeStr} slot is not available. There are ${slots.length} slots available: ${slots.slice(0, 3).join(', ')}. Which time would you prefer?`;
         this.recordAgentResponse(spoken);
-        return { spokenResponse: spoken, state: this.getState() };
+        return { intent: 'APPOINTMENT_SLOT_QUERY', spokenResponse: spoken, state: this.getState() };
       }
     }
 
@@ -743,7 +900,7 @@ export class VoiceAgentService {
         : `The earliest available slot for ${doctorName} on ${dayLabel} is at ${earliest}. Should I book it?`;
       this.state.timeStr = earliest;
       this.recordAgentResponse(spoken);
-      return { spokenResponse: spoken, state: this.getState() };
+      return { intent: 'APPOINTMENT_SLOT_QUERY', spokenResponse: spoken, state: this.getState() };
     }
 
     const slotListStr = slots.join(', ');
@@ -753,12 +910,13 @@ export class VoiceAgentService {
       : `For ${doctorName} on ${dayLabel}, available slots are: ${slotListStr}.${occupiedNote} Which time would you prefer?`;
 
     this.recordAgentResponse(spoken);
-    return { spokenResponse: spoken, state: this.getState() };
+    return { intent: 'APPOINTMENT_SLOT_QUERY', spokenResponse: spoken, state: this.getState() };
   }
 
   // ── Specific Existing Appointment Queries ────────────────────────────────
 
   private async handleSpecificAppointmentQuery(lower: string) {
+    this.state.intent = 'VIEW_APPOINTMENTS';
     const apts = await patientService.getAppointments();
     const active = apts.filter((a) => a.status === 'confirmed' || a.status === 'pending');
 
@@ -770,7 +928,7 @@ export class VoiceAgentService {
           ? 'Aaj aapki koi appointment schedule nahi hai. Kya aap kisi doctor ke saath appointment book karna chahte hain?'
           : 'You do not have any appointment scheduled for today. Would you like to book one?';
         this.recordAgentResponse(spoken);
-        return { spokenResponse: spoken, state: this.getState() };
+        return { intent: 'VIEW_APPOINTMENTS', spokenResponse: spoken, state: this.getState() };
       }
       const apt = todayApts[0];
       const spoken = this.language === 'hi'
@@ -778,7 +936,7 @@ export class VoiceAgentService {
         : `Today you have an appointment with ${apt.doctorName} (${apt.speciality}) at ${apt.time} at ${apt.facility}. Token is ${apt.tokenNumber}.`;
       const card = { type: 'APPOINTMENT_DETAILS' as const, data: apt };
       this.recordAgentResponse(spoken, card);
-      return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+      return { intent: 'VIEW_APPOINTMENTS', spokenResponse: spoken, actionCard: card, state: this.getState() };
     }
 
     // 2. Tomorrow's appointment
@@ -789,7 +947,7 @@ export class VoiceAgentService {
           ? 'Kal aapki koi appointment nahi hai. Aap chahein toh kal ke liye slot book kar sakte hain.'
           : 'You have no appointments scheduled for tomorrow. Would you like to schedule one?';
         this.recordAgentResponse(spoken);
-        return { spokenResponse: spoken, state: this.getState() };
+        return { intent: 'VIEW_APPOINTMENTS', spokenResponse: spoken, state: this.getState() };
       }
       const apt = tomorrowApts[0];
       const spoken = this.language === 'hi'
@@ -797,7 +955,7 @@ export class VoiceAgentService {
         : `Tomorrow you have an appointment with ${apt.doctorName} (${apt.speciality}) at ${apt.time} at ${apt.facility}. Token is ${apt.tokenNumber}.`;
       const card = { type: 'APPOINTMENT_DETAILS' as const, data: apt };
       this.recordAgentResponse(spoken, card);
-      return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+      return { intent: 'VIEW_APPOINTMENTS', spokenResponse: spoken, actionCard: card, state: this.getState() };
     }
 
     // 3. Ask token number
@@ -918,6 +1076,7 @@ export class VoiceAgentService {
   // ── Appointment Rescheduling Flow ────────────────────────────────────────
 
   private async handleRescheduleIntent(lower: string) {
+    this.state.intent = 'RESCHEDULE_APPOINTMENT';
     const apts = await patientService.getAppointments();
     const active = apts.filter((a) => a.status === 'confirmed' || a.status === 'pending');
 
@@ -958,12 +1117,13 @@ export class VoiceAgentService {
     };
 
     this.recordAgentResponse(spoken, card);
-    return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+    return { intent: 'RESCHEDULE_APPOINTMENT', spokenResponse: spoken, actionCard: card, state: this.getState() };
   }
 
   // ── Appointment Cancellation Flow ────────────────────────────────────────
 
   private async handleCancellationIntent(_query?: string) {
+    this.state.intent = 'CANCEL_APPOINTMENT';
     const apts = await patientService.getAppointments();
     const activeApts = apts.filter((a) => a.status === 'confirmed' || a.status === 'pending');
 
@@ -990,12 +1150,13 @@ export class VoiceAgentService {
     };
 
     this.recordAgentResponse(spoken, card);
-    return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+    return { intent: 'CANCEL_APPOINTMENT', spokenResponse: spoken, actionCard: card, state: this.getState() };
   }
 
   // ── Specialist Outreach Camps ────────────────────────────────────────────
 
   private async handleOutreachQuery(lower: string = '') {
+    this.state.intent = 'OUTREACH_QUERY';
     const outreachList = await patientService.getOutreachEvents();
     if (outreachList.length === 0) {
       const spoken = this.language === 'hi'
@@ -1030,12 +1191,13 @@ export class VoiceAgentService {
     };
 
     this.recordAgentResponse(spoken, card);
-    return { spokenResponse: spoken, actionCard: card, navigateUrl: '/patient/outreach', state: this.getState() };
+    return { intent: 'OUTREACH_QUERY', spokenResponse: spoken, actionCard: card, navigateUrl: '/patient/outreach', state: this.getState() };
   }
 
   // ── Health Records & Prescriptions ───────────────────────────────────────
 
   private async handleHealthRecordsQuery(lower: string) {
+    this.state.intent = 'HEALTH_RECORDS';
     const records = await patientService.getHealthRecords();
     if (records.length === 0) {
       const spoken = this.language === 'hi' ? 'Aapke pass abhi koi uploaded health record nahi mila.' : 'No health records found for your account.';
@@ -1051,7 +1213,7 @@ export class VoiceAgentService {
         ? `Aapki latest prescription ${latest.date} ko ${latest.doctorName} dwara likhi gayi hai. Prescriptions page par puri list uplabdh hai.`
         : `Your latest prescription was prescribed by ${latest.doctorName} on ${latest.date}. Available on records page.`;
       this.recordAgentResponse(spoken);
-      return { spokenResponse: spoken, navigateUrl: '/patient/records', state: this.getState() };
+      return { intent: 'HEALTH_RECORDS', spokenResponse: spoken, navigateUrl: '/patient/records', state: this.getState() };
     }
 
     const spoken = this.language === 'hi'
@@ -1064,12 +1226,13 @@ export class VoiceAgentService {
     };
 
     this.recordAgentResponse(spoken, card);
-    return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+    return { intent: 'HEALTH_RECORDS', spokenResponse: spoken, actionCard: card, state: this.getState() };
   }
 
   // ── Referrals Tracking ───────────────────────────────────────────────────
 
   private async handleReferralQuery(_lower?: string) {
+    this.state.intent = 'REFERRAL_STATUS';
     const referrals = await patientService.getReferrals();
     if (referrals.length === 0) {
       const spoken = this.language === 'hi' ? 'Aapke pass koi active referral nahi hai.' : 'You have no active referrals.';
@@ -1088,12 +1251,13 @@ export class VoiceAgentService {
     };
 
     this.recordAgentResponse(spoken, card);
-    return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+    return { intent: 'REFERRAL_STATUS', spokenResponse: spoken, actionCard: card, state: this.getState() };
   }
 
   // ── Follow-up Checkups ───────────────────────────────────────────────────
 
   private async handleFollowUpQuery() {
+    this.state.intent = 'FOLLOW_UP_QUERY';
     const followUps = await patientService.getFollowUps();
     if (followUps.length === 0) {
       const spoken = this.language === 'hi'
@@ -1114,12 +1278,13 @@ export class VoiceAgentService {
     };
 
     this.recordAgentResponse(spoken, card);
-    return { spokenResponse: spoken, actionCard: card, state: this.getState() };
+    return { intent: 'FOLLOW_UP_QUERY', spokenResponse: spoken, actionCard: card, state: this.getState() };
   }
 
   // ── Teleconsultation ─────────────────────────────────────────────────────
 
   private async handleTeleconsultationQuery(_query?: string) {
+    this.state.intent = 'TELECONSULT_QUERY';
     const teleList = await patientService.getTeleconsultations();
     const active = teleList.find((t) => t.status === 'in_consultation' || t.status === 'waiting' || t.status === 'upcoming') || teleList[0];
 
@@ -1134,7 +1299,7 @@ export class VoiceAgentService {
       };
 
       this.recordAgentResponse(spoken, card);
-      return { spokenResponse: spoken, actionCard: card, navigateUrl: '/patient/teleconsultation', state: this.getState() };
+      return { intent: 'TELECONSULT_QUERY', spokenResponse: spoken, actionCard: card, navigateUrl: '/patient/teleconsultation', state: this.getState() };
     }
 
     const spoken = this.language === 'hi'
@@ -1142,7 +1307,7 @@ export class VoiceAgentService {
       : 'No active teleconsultation session found. You can initiate one from the Teleconsultation page.';
 
     this.recordAgentResponse(spoken);
-    return { spokenResponse: spoken, navigateUrl: '/patient/teleconsultation', state: this.getState() };
+    return { intent: 'TELECONSULT_QUERY', spokenResponse: spoken, navigateUrl: '/patient/teleconsultation', state: this.getState() };
   }
 
   // ── Lab Diagnostics & Medicines ──────────────────────────────────────────

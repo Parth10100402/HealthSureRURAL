@@ -36,7 +36,7 @@ export class VoicePipelineService {
       `[VoicePipeline] Uploading audio (${audioBlob.size} bytes, type: ${audioBlob.type}, lang: ${langParam})...`
     );
 
-    const response = await fetch(`/api/speech-to-text?lang=${langParam}`, {
+    let response = await fetch(`/api/speech-to-text?lang=${langParam}`, {
       method: 'POST',
       headers: {
         'Content-Type': audioBlob.type || 'audio/webm',
@@ -44,6 +44,20 @@ export class VoicePipelineService {
       },
       body: audioBlob,
     });
+
+    if (!response.ok) {
+      try {
+        const altRes = await fetch(`/speech-to-text?lang=${langParam}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': audioBlob.type || 'audio/webm',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: audioBlob,
+        });
+        if (altRes.ok) response = altRes;
+      } catch {}
+    }
 
     if (!response.ok) {
       const errBody = await response.text();

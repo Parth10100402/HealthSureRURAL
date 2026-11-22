@@ -70,25 +70,28 @@ export const createApp = () => {
             message: `Voice call dispatched to ${recipientName || 'Beneficiary'} (${destinationPhone || '07314624692'}). Purpose: ${purpose || 'Continuity reminder'}.`,
         });
     });
-    // Mount Modular Routes
-    app.use('/api/auth', authRoutes);
-    app.use('/api/patients', patientRoutes);
-    app.use('/api/appointments', appointmentRoutes);
-    app.use('/api/outreach', outreachRoutes);
-    app.use('/api/doctors', doctorRoutes);
-    app.use('/api/hospitals', hospitalRoutes);
-    app.use('/api/referrals', referralRoutes);
-    app.use('/api/health-records', healthRecordRoutes);
-    app.use('/api/followups', followUpRoutes);
-    app.use('/api/teleconsultations', teleconsultRoutes);
-    app.use('/api/diagnostics', diagnosticRoutes);
-    app.use('/api/notifications', notificationRoutes);
-    app.use('/api/admin', adminRoutes);
-    app.use('/api/deepgram-token', deepgramRoutes);
-    app.use('/api/speech-to-text', voiceRoutes);
-    app.use('/api/text-to-speech', voiceRoutes);
-    app.use('/api/voice', voiceRoutes);
-    app.use('/api/ivr', ivrRoutes);
+    // Mount Modular Routes (both /api/* and root /* for serverless compatibility)
+    const routePrefixes = ['/api', ''];
+    routePrefixes.forEach((prefix) => {
+        app.use(`${prefix}/auth`, authRoutes);
+        app.use(`${prefix}/patients`, patientRoutes);
+        app.use(`${prefix}/appointments`, appointmentRoutes);
+        app.use(`${prefix}/outreach`, outreachRoutes);
+        app.use(`${prefix}/doctors`, doctorRoutes);
+        app.use(`${prefix}/hospitals`, hospitalRoutes);
+        app.use(`${prefix}/referrals`, referralRoutes);
+        app.use(`${prefix}/health-records`, healthRecordRoutes);
+        app.use(`${prefix}/followups`, followUpRoutes);
+        app.use(`${prefix}/teleconsultations`, teleconsultRoutes);
+        app.use(`${prefix}/diagnostics`, diagnosticRoutes);
+        app.use(`${prefix}/notifications`, notificationRoutes);
+        app.use(`${prefix}/admin`, adminRoutes);
+        app.use(`${prefix}/deepgram-token`, deepgramRoutes);
+        app.use(`${prefix}/speech-to-text`, voiceRoutes);
+        app.use(`${prefix}/text-to-speech`, voiceRoutes);
+        app.use(`${prefix}/voice`, voiceRoutes);
+        app.use(`${prefix}/ivr`, ivrRoutes);
+    });
     // 404 Route Handler
     app.use('/api/*', (_req, res) => {
         res.status(404).json({

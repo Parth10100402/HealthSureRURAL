@@ -1,3 +1,4 @@
+import { eventDispatcher } from '../services/n8n/eventDispatcher.js';
 import { syncCloudAppointments } from '../db/cloudSync.js';
 // HealthSure — Doctor Controller with Canonical DateTime Formatting
 // backend/src/controllers/doctorController.ts

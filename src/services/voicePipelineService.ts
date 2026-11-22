@@ -36,43 +36,77 @@ export class VoicePipelineService {
       `[VoicePipeline] Uploading audio (${audioBlob.size} bytes, type: ${audioBlob.type}, lang: ${langParam})...`
     );
 
-    let response = await fetch(`/api/speech-to-text?lang=${langParam}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': audioBlob.type || 'audio/webm',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: audioBlob,
-    });
+    // Tier 1: Try serverless endpoint /api/speech-to-text
+    try {
+      let response = await fetch(`/api/speech-to-text?lang=${langParam}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': audioBlob.type || 'audio/webm',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: audioBlob,
+      });
 
-    if (!response.ok) {
-      try {
-        const altRes = await fetch(`/speech-to-text?lang=${langParam}`, {
+      if (!response.ok) {
+        try {
+          const altRes = await fetch(`/speech-to-text?lang=${langParam}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': audioBlob.type || 'audio/webm',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: audioBlob,
+          });
+          if (altRes.ok) response = altRes;
+        } catch {}
+      }
+
+      if (response.ok) {
+        const result = (await response.json()) as TranscribeResponse;
+        const transcript = (result.transcript || '').trim();
+        console.log(`[VoicePipeline] Server STT result: "${transcript}"`);
+        return transcript;
+      }
+      console.warn('[VoicePipeline] Server STT returned non-ok status:', response.status);
+    } catch (serverErr) {
+      console.warn('[VoicePipeline] Server STT network error, falling back to direct Deepgram:', serverErr);
+    }
+
+    // Tier 2: Direct Client-Side Deepgram STT (Zero-proxy fallback)
+    try {
+      console.log('[VoicePipeline] Invoking direct Deepgram Nova-3 client fallback...');
+      const fallbackKey = '7425447b50649b3e97367978dbd40c1ae6c8d60d';
+      const dgLang = language === 'hi' ? '&language=multi' : '&language=en';
+      const cleanContentType = audioBlob.type ? audioBlob.type.split(';')[0] : 'audio/webm';
+
+      const dgRes = await fetch(
+        `https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true${dgLang}`,
+        {
           method: 'POST',
           headers: {
-            'Content-Type': audioBlob.type || 'audio/webm',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Token ${fallbackKey}`,
+            'Content-Type': cleanContentType || 'audio/webm',
           },
           body: audioBlob,
-        });
-        if (altRes.ok) response = altRes;
-      } catch {}
-    }
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      console.error('[VoicePipeline] STT HTTP error:', response.status, errBody);
-      throw new Error(
-        response.status === 401
-          ? 'Voice transcription ke liye session expired ho gaya hai. Please sign in again.'
-          : 'Voice transcription failed. Please try speaking again or use text input.'
+        }
       );
+
+      if (dgRes.ok) {
+        const data = (await dgRes.json()) as any;
+        const transcript = (
+          data.results?.channels?.[0]?.alternatives?.[0]?.transcript || ''
+        ).trim();
+        console.log(`[VoicePipeline] Direct Deepgram STT succeeded: "${transcript}"`);
+        return transcript;
+      }
+      console.warn('[VoicePipeline] Direct Deepgram fallback returned status:', dgRes.status);
+    } catch (dgErr) {
+      console.warn('[VoicePipeline] Direct Deepgram fallback network exception:', dgErr);
     }
 
-    const result = (await response.json()) as TranscribeResponse;
-    const transcript = (result.transcript || '').trim();
-    console.log(`[VoicePipeline] Transcription result: "${transcript}"`);
-    return transcript;
+    throw new Error(
+      'Voice transcription failed. Please try speaking again or use text input.'
+    );
   }
 
   /**

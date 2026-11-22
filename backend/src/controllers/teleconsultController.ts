@@ -1,3 +1,4 @@
+import { eventDispatcher } from '../services/n8n/eventDispatcher.js';
 // HealthSure — Production Teleconsultation Controller & Server-Authoritative State Machine
 // backend/src/controllers/teleconsultController.ts
 

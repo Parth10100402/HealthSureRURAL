@@ -1,3 +1,4 @@
+import { eventDispatcher } from '../services/n8n/eventDispatcher.js';
 // HealthSure — Referral Controller
 // backend/src/controllers/referralController.ts
 
@@ -109,6 +110,18 @@ export const createReferral = async (req: Request, res: Response, next: NextFunc
 
     dataStore.referrals.unshift(newRef);
 
+    eventDispatcher.emit('referral.created', {
+      referralId: newRef.id,
+      patientId: newRef.patientId,
+      referringFacilityId: newRef.referringFacilityId,
+      receivingHospitalId: newRef.receivingHospitalId,
+      speciality: newRef.speciality,
+      priority: newRef.priority,
+      status: newRef.status,
+      tokenNumber: newRef.tokenNumber,
+      createdAt: newRef.createdAt,
+    });
+
     // Notify patient
     const pat = dataStore.patients.find((p) => p.id === body.patientId);
     if (pat) {
@@ -147,6 +160,16 @@ export const patchReferral = async (req: Request, res: Response, next: NextFunct
     ref.status = body.status;
     if (body.tokenNumber) ref.tokenNumber = body.tokenNumber;
     ref.updatedAt = new Date();
+
+    eventDispatcher.emit('referral.status_changed', {
+      referralId: ref.id,
+      patientId: ref.patientId,
+      receivingHospitalId: ref.receivingHospitalId,
+      speciality: ref.speciality,
+      status: ref.status,
+      tokenNumber: ref.tokenNumber,
+      updatedAt: ref.updatedAt,
+    });
 
     // If hospital accepted and scheduled appointment
     if (body.status === 'APPOINTMENT_SCHEDULED' || body.status === 'HOSPITAL_ACCEPTED') {

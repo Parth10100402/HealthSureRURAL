@@ -1,0 +1,286 @@
+{
+  "name": "HS_Teleconsultation_Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hs-teleconsultation",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "hs-teleconsultation-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate Teleconsultation Lifecycle Event\nconst body = $input.first().json.body || $input.first().json;\nconst p = body.payload || {};\nreturn [{\n  json: {\n    eventId: body.eventId,\n    eventType: body.eventType,\n    idempotencyKey: body.idempotencyKey,\n    sessionId: p.sessionId,\n    appointmentId: p.appointmentId,\n    patientId: p.patientId,\n    doctorId: p.doctorId,\n    scheduledAt: p.scheduledAt,\n    status: p.status\n  }\n}];"
+      },
+      "name": "Validate Teleconsult Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "teleconsultation.scheduled",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "teleconsultation.session_started",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.eventType }}",
+                    "rightValue": "teleconsultation.cancelled",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        }
+      },
+      "name": "Switch by Teleconsult State",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.HEALTHSURE_API_URL || 'https://healthsurerural.vercel.app' }}/api/service/teleconsultations/{{ $json.sessionId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-HealthSure-Service-Key",
+              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Fetch Teleconsult Readiness",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.isSessionActive }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Is Session Active & Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HEALTHSURE_API_URL || 'https://healthsurerural.vercel.app' }}/api/service/notifications/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-HealthSure-Service-Key",
+              "value": "={{ $env.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipientId\": \"{{ $json.data.patientId }}\",\n  \"recipientRole\": \"PATIENT\",\n  \"channel\": \"IN_APP\",\n  \"priority\": \"HIGH\",\n  \"type\": \"TELECONSULT_READINESS\",\n  \"title\": \"{{ $json.data.preferredLanguage === 'hi' ? 'Video Consultation Ready: Dr. ' + $json.data.doctorName : 'Video Consultation Ready: Dr. ' + $json.data.doctorName }}\",\n  \"message\": \"{{ $json.data.preferredLanguage === 'hi' ? 'Aapki ' + $json.data.doctorName + ' ke saath video teleconsultation room taiyar hai. Link par tap karke camera aur mic allow karein: ' + $json.data.roomUrl : 'Your video consultation with ' + $json.data.doctorName + ' is ready. Please click to join and allow camera/mic: ' + $json.data.roomUrl }}\"\n}",
+        "options": {}
+      },
+      "name": "Send Teleconsult Readiness Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1380,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Teleconsultation connected via P2P WebRTC\nconsole.log('Teleconsultation session ' + $json.sessionId + ' is now LIVE.');\nreturn [{ json: { status: 'LIVE_CONFIRMED', sessionId: $json.sessionId } }];"
+      },
+      "name": "Log P2P Call Connected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Teleconsultation cancelled - cancel readiness notifications\nconsole.log('Cancelled teleconsultation session ' + $json.sessionId + '. Notifications invalidated.');\nreturn [{ json: { status: 'CANCELLED_SUPPRESSED', sessionId: $json.sessionId } }];"
+      },
+      "name": "Invalidate Teleconsult Reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        920,
+        460
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate Teleconsult Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Teleconsult Event": {
+      "main": [
+        [
+          {
+            "node": "Switch by Teleconsult State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Teleconsult State": {
+      "main": [
+        [
+          {
+            "node": "Fetch Teleconsult Readiness",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log P2P Call Connected",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Invalidate Teleconsult Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Teleconsult Readiness": {
+      "main": [
+        [
+          {
+            "node": "Is Session Active & Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Session Active & Ready?": {
+      "main": [
+        [
+          {
+            "node": "Send Teleconsult Readiness Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

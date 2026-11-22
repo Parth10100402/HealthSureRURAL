@@ -1,4 +1,5 @@
 import { publishCloudAppointment } from '../db/cloudSync.js';
+import { eventDispatcher } from '../services/n8n/eventDispatcher.js';
 // HealthSure — Appointments Controller with Canonical DateTime & Atomic Transactions
 // backend/src/controllers/appointmentController.ts
 
@@ -209,6 +210,34 @@ export const createAppointment = async (req: Request, res: Response, next: NextF
 
     if (newApt.mode === 'TELECONSULTATION') {
       const teleId = `tele-${newApt.id}`;
+      eventDispatcher.emit('teleconsultation.scheduled', {
+        sessionId: teleId,
+        appointmentId: newApt.id,
+        patientId: newApt.patientId,
+        doctorId: newApt.doctorId,
+        scheduledAt: newApt.scheduledAt,
+        date: newApt.date,
+        time: newApt.startTime,
+        facilityId: newApt.facilityId,
+        status: 'SCHEDULED',
+      });
+    }
+
+    eventDispatcher.emit('appointment.booked', {
+      appointmentId: newApt.id,
+      patientId: newApt.patientId,
+      doctorId: newApt.doctorId,
+      facilityId: newApt.facilityId,
+      scheduledAt: newApt.scheduledAt,
+      date: newApt.date,
+      time: newApt.startTime,
+      mode: newApt.mode,
+      token: newApt.token,
+      status: newApt.status,
+    });
+
+    if (newApt.mode === 'TELECONSULTATION') {
+      const teleId = `tele-${newApt.id}`;
       dataStore.teleconsultations.unshift({
         id: teleId,
         appointmentId: newApt.id,
@@ -245,6 +274,31 @@ export const patchAppointment = async (req: Request, res: Response, next: NextFu
 
     Object.assign(apt, req.body, { updatedAt: new Date() });
 
+    if (req.body.date || req.body.startTime || req.body.scheduledAt) {
+      eventDispatcher.emit('appointment.rescheduled', {
+        appointmentId: apt.id,
+        patientId: apt.patientId,
+        doctorId: apt.doctorId,
+        facilityId: apt.facilityId,
+        scheduledAt: apt.scheduledAt,
+        date: apt.date,
+        time: apt.startTime,
+        mode: apt.mode,
+        status: apt.status,
+      });
+
+      if (apt.mode === 'TELECONSULTATION') {
+        eventDispatcher.emit('teleconsultation.rescheduled', {
+          sessionId: `tele-${apt.id}`,
+          appointmentId: apt.id,
+          patientId: apt.patientId,
+          doctorId: apt.doctorId,
+          scheduledAt: apt.scheduledAt,
+          status: apt.status,
+        });
+      }
+    }
+
     res.json({
       success: true,
       data: apt,
@@ -278,6 +332,27 @@ export const deleteAppointment = async (req: Request, res: Response, next: NextF
     }
 
     publishCloudAppointment(apt);
+
+    eventDispatcher.emit('appointment.cancelled', {
+      appointmentId: apt.id,
+      patientId: apt.patientId,
+      doctorId: apt.doctorId,
+      facilityId: apt.facilityId,
+      scheduledAt: apt.scheduledAt,
+      date: apt.date,
+      time: apt.startTime,
+      status: 'CANCELLED',
+    });
+
+    if (apt.mode === 'TELECONSULTATION') {
+      eventDispatcher.emit('teleconsultation.cancelled', {
+        sessionId: `tele-${apt.id}`,
+        appointmentId: apt.id,
+        patientId: apt.patientId,
+        doctorId: apt.doctorId,
+        status: 'CANCELLED',
+      });
+    }
 
     res.json({
       success: true,

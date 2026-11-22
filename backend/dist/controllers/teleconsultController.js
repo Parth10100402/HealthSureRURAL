@@ -1,5 +1,3 @@
-// HealthSure — Production Teleconsultation Controller & Server-Authoritative State Machine
-// backend/src/controllers/teleconsultController.ts
 import { dataStore } from '../db/store.js';
 import { getPrisma } from '../db/prisma.js';
 // In-process memory store for fast local lookup

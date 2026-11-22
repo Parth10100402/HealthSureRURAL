@@ -26,4 +26,14 @@ export const config = {
     OTP_EXPIRY_SECONDS: parseInt(process.env.OTP_EXPIRY_SECONDS || '300', 10),
     OTP_RESEND_COOLDOWN_SECONDS: parseInt(process.env.OTP_RESEND_COOLDOWN_SECONDS || '60', 10),
     OTP_MAX_ATTEMPTS: parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10),
+    // n8n Integration Configuration
+    N8N_ENABLED: process.env.N8N_ENABLED === 'true',
+    N8N_BASE_URL: process.env.N8N_BASE_URL || 'http://localhost:5678',
+    N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET || 'hs_sec_99a81f3b72ce4e82b7041dc8394e1',
+    N8N_APPOINTMENT_WEBHOOK_URL: process.env.N8N_APPOINTMENT_WEBHOOK_URL || '',
+    N8N_REFERRAL_WEBHOOK_URL: process.env.N8N_REFERRAL_WEBHOOK_URL || '',
+    N8N_FOLLOWUP_WEBHOOK_URL: process.env.N8N_FOLLOWUP_WEBHOOK_URL || '',
+    N8N_TELECONSULT_WEBHOOK_URL: process.env.N8N_TELECONSULT_WEBHOOK_URL || '',
+    HEALTHSURE_SERVICE_API_KEY: process.env.HEALTHSURE_SERVICE_API_KEY || 'hs_svc_key_8e4b7190d65f42289fcd9183',
+    REFERRAL_SLA_HOURS: parseInt(process.env.REFERRAL_SLA_HOURS || '4', 10),
 };

@@ -21,6 +21,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import deepgramRoutes from './routes/deepgramRoutes.js';
 import voiceRoutes from './routes/voiceRoutes.js';
 import ivrRoutes from './routes/ivrRoutes.js';
+import serviceRoutes from './routes/serviceRoutes.js';
 export const createApp = () => {
     const app = express();
     // CORS Configuration
@@ -28,7 +29,7 @@ export const createApp = () => {
         origin: true,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-HealthSure-Service-Key', 'X-Service-Key'],
     }));
     // Body Parsers (Raw audio for speech-to-text, JSON/urlencoded for API)
     app.use(express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '25mb' }));
@@ -91,6 +92,7 @@ export const createApp = () => {
         app.use(`${prefix}/text-to-speech`, voiceRoutes);
         app.use(`${prefix}/voice`, voiceRoutes);
         app.use(`${prefix}/ivr`, ivrRoutes);
+        app.use(`${prefix}/service`, serviceRoutes);
     });
     // 404 Route Handler
     app.use('/api/*', (_req, res) => {

@@ -14,4 +14,13 @@ export declare const config: {
     OTP_EXPIRY_SECONDS: number;
     OTP_RESEND_COOLDOWN_SECONDS: number;
     OTP_MAX_ATTEMPTS: number;
+    N8N_ENABLED: boolean;
+    N8N_BASE_URL: string;
+    N8N_WEBHOOK_SECRET: string;
+    N8N_APPOINTMENT_WEBHOOK_URL: string;
+    N8N_REFERRAL_WEBHOOK_URL: string;
+    N8N_FOLLOWUP_WEBHOOK_URL: string;
+    N8N_TELECONSULT_WEBHOOK_URL: string;
+    HEALTHSURE_SERVICE_API_KEY: string;
+    REFERRAL_SLA_HOURS: number;
 };

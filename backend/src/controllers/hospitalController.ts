@@ -1,3 +1,4 @@
+import { eventDispatcher } from '../services/n8n/eventDispatcher.js';
 import type { Request, Response, NextFunction } from 'express';
 import { dataStore } from '../db/store.js';
 import { createUtcInstantFromIst, formatAppointmentTime, formatAppointmentDate } from '../utils/dateTime.js';
@@ -79,6 +80,16 @@ export const patchHospitalReferral = async (req: Request, res: Response, next: N
       ref.tokenNumber = `DH-${deptPrefix}-${count}`;
     }
     ref.updatedAt = new Date();
+
+    eventDispatcher.emit('referral.status_changed', {
+      referralId: ref.id,
+      patientId: ref.patientId,
+      receivingHospitalId: ref.receivingHospitalId,
+      speciality: ref.speciality,
+      status: ref.status,
+      tokenNumber: ref.tokenNumber,
+      updatedAt: ref.updatedAt,
+    });
 
     // If accepting & scheduling, also ensure an appointment is created
     if (status === 'HOSPITAL_ACCEPTED' || status === 'APPOINTMENT_SCHEDULED') {

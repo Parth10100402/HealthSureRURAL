@@ -56,24 +56,49 @@ const handleSpeechToText = async (req, res) => {
     }
     const lang = req.query.lang || req.body?.language || '';
     const langParam = lang === 'hi' ? '&language=multi' : lang === 'en' ? '&language=en' : '';
-    const contentType = req.headers['content-type'] || 'audio/webm';
+    const rawContentType = req.headers['content-type'] || 'audio/webm';
+    const cleanContentType = rawContentType.split(';')[0].trim() || 'audio/webm';
     try {
-        console.log(`[STT] Transcribing audio (${audioBuffer.length} bytes, type: ${contentType}, lang: ${lang || 'auto'})...`);
-        const dgUrl = `https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true${langParam}`;
-        const dgResponse = await fetch(dgUrl, {
+        console.log(`[STT] Transcribing audio (${audioBuffer.length} bytes, type: ${cleanContentType}, lang: ${lang || 'auto'})...`);
+        let dgUrl = `https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true${langParam}`;
+        let dgResponse = await fetch(dgUrl, {
             method: 'POST',
             headers: {
                 Authorization: `Token ${apiKey}`,
-                'Content-Type': contentType,
+                'Content-Type': cleanContentType,
             },
             body: audioBuffer,
         });
         if (!dgResponse.ok) {
+            console.warn('[STT] Primary Nova-3 attempt failed, retrying with raw Content-Type...');
+            dgResponse = await fetch(dgUrl, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Token ${apiKey}`,
+                    'Content-Type': rawContentType,
+                },
+                body: audioBuffer,
+            });
+        }
+        if (!dgResponse.ok) {
+            console.warn('[STT] Retrying with general model fallback...');
+            dgUrl = `https://api.deepgram.com/v1/listen?model=general&smart_format=true${langParam}`;
+            dgResponse = await fetch(dgUrl, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Token ${apiKey}`,
+                    'Content-Type': cleanContentType,
+                },
+                body: audioBuffer,
+            });
+        }
+        if (!dgResponse.ok) {
             const errText = await dgResponse.text();
-            console.error('[STT] Deepgram STT error:', dgResponse.status, errText);
+            console.error('[STT] Deepgram STT final error:', dgResponse.status, errText);
             res.status(502).json({
                 success: false,
                 message: 'Failed to transcribe audio from speech service.',
+                details: errText,
             });
             return;
         }
@@ -91,6 +116,7 @@ const handleSpeechToText = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Internal error processing audio transcription.',
+            error: err.message,
         });
     }
 };

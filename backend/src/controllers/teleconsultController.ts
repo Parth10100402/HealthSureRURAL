@@ -487,7 +487,7 @@ async function readSignalsFromDB(sessionId: string, since: number): Promise<Sign
       orderBy: { timestamp: 'asc' },
       take: 200,
     });
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       id: r.id,
       sessionId: r.sessionId,
       senderRole: r.senderRole as any,

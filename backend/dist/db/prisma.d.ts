@@ -1,2 +1,1 @@
-import { PrismaClient } from '@prisma/client';
-export declare function getPrisma(): PrismaClient | null;
+export declare function getPrisma(): any;

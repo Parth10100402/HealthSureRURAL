@@ -17,7 +17,7 @@ export interface IvrSessionState {
 // In-memory active IVR call sessions
 const ivrCallSessions = new Map<string, IvrSessionState>();
 
-const HEALTHSURE_EXECUTIVE_NUMBER = '+91 07314624692';
+const HEALTHSURE_EXECUTIVE_NUMBER = '+91 08047291536';
 const AMBULANCE_108_NUMBER = '108';
 
 /**
@@ -236,7 +236,7 @@ export const handleCallStatus = async (req: Request, res: Response): Promise<voi
 export const getIvrConfig = async (_req: Request, res: Response): Promise<void> => {
   res.status(200).json({
     success: true,
-    helplineNumber: '+91 09513886363',
+    helplineNumber: '+91 08047291536',
     executiveHotline: HEALTHSURE_EXECUTIVE_NUMBER,
     ambulanceHelpline: AMBULANCE_108_NUMBER,
     supportedLanguages: ['Hindi', 'English', 'Marathi'],
@@ -252,7 +252,7 @@ export const getIvrConfig = async (_req: Request, res: Response): Promise<void> 
       statusUrl: 'https://healthsurerural.vercel.app/api/ivr/status',
       requiresDashboardBinding: true,
       documentation:
-        'To connect this endpoint to live phone lines: In the Exotel Dashboard, create an Applet with a Passthru or Gather widget pointing to /api/ivr/incoming and bind your virtual number 09513886363 to it.',
+        'To connect this endpoint to live phone lines: In the Exotel Dashboard, create an Applet with a Passthru or Gather widget pointing to /api/ivr/incoming and bind your virtual number 08047291536 to it.',
     },
   });
 };

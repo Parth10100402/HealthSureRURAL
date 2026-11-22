@@ -738,7 +738,7 @@ const cat10Templates = [
   { u: 'Chest pain ho raha hai madad karo!', lang: 'hi', intent: 'EMERGENCY_SOS' },
   { u: 'Accident hua hai urgent help chahiye.', lang: 'hi', intent: 'EMERGENCY_SOS' },
   { u: 'HealthSure helpline number kya hai?', lang: 'hi', intent: 'GENERAL_ASSISTANCE' },
-  { u: 'Call HealthSure support desk 07314624692.', lang: 'en', intent: 'GENERAL_ASSISTANCE' },
+  { u: 'Call HealthSure support desk 08047291536.', lang: 'en', intent: 'GENERAL_ASSISTANCE' },
   { u: 'Explain rural healthcare benefits of HealthSure.', lang: 'en', intent: 'GENERAL_ASSISTANCE' },
   { u: 'How does ABHA health ID work in HealthSure?', lang: 'en', intent: 'GENERAL_ASSISTANCE' },
   { u: 'ABHA card kaise link karte hain?', lang: 'hi', intent: 'GENERAL_ASSISTANCE' },

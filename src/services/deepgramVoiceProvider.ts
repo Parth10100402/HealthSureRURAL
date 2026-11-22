@@ -348,7 +348,7 @@ You help patients with: finding doctors, booking/cancelling appointments, checki
 CRITICAL RULES:
 - For appointment booking and cancellation: ALWAYS ask for explicit YES (Haan/Yes/Confirm) before executing. Never skip confirmation.
 - All patient data is scoped to the authenticated patient only.
-- For emergencies, immediately provide 108 and HealthSure helpline 07314624692.
+- For emergencies, immediately provide 108 and HealthSure helpline 08047291536.
 - Use the provided functions to get real data. Never make up doctor names, appointment times, or availability.
 - Speak in a warm, simple manner that rural patients understand.
 - Keep responses concise — 2-3 sentences max unless listing items.
@@ -361,7 +361,7 @@ Help patients with: doctors, appointments, health records, referrals, teleconsul
 CRITICAL RULES:
 - For booking/cancellation: ALWAYS require explicit YES/Confirm before executing. 
 - All data is scoped to the authenticated patient.
-- For emergencies: provide 108 and HealthSure helpline 07314624692.
+- For emergencies: provide 108 and HealthSure helpline 08047291536.
 - Use functions for real data. Never fabricate availability or appointments.
 - Keep responses concise — 2-3 sentences max unless listing items.
 

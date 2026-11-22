@@ -78,7 +78,7 @@ export const createApp = () => {
       success: true,
       callId: 'call-' + Date.now(),
       status: 'INITIATED',
-      message: `Voice call dispatched to ${recipientName || 'Beneficiary'} (${destinationPhone || '07314624692'}). Purpose: ${purpose || 'Continuity reminder'}.`,
+      message: `Voice call dispatched to ${recipientName || 'Beneficiary'} (${destinationPhone || '08047291536'}). Purpose: ${purpose || 'Continuity reminder'}.`,
     });
   });
 

@@ -12,7 +12,7 @@ export function buildSlide4() {
       color: C.blue, bg: C.blueLight
     },
     {
-      title: "2. Cloud IVR Telephony (09513886363)",
+      title: "2. Cloud IVR Telephony (08047291536)",
       desc: "Empowers patients on ₹800 basic feature phones with zero internet. Interactive voice response menu routes appointments, queries doctor availability, and triggers emergency alerts.",
       color: C.tealPrimary, bg: C.tealLight
     },

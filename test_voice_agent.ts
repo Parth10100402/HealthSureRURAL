@@ -122,7 +122,7 @@ async function runTests() {
   console.log('--- TEST 10: Emergency SOS ("Emergency hai madad karo") ---');
   const res10 = await voiceAgent.processUserInput('Emergency hai madad karo');
   console.log('Agent Response:', res10.spokenResponse);
-  if (!res10.spokenResponse.includes('108') || !res10.spokenResponse.includes('07314624692')) {
+  if (!res10.spokenResponse.includes('108') || !res10.spokenResponse.includes('08047291536')) {
     throw new Error('Test 10 Failed: Emergency trigger did not provide 108 or helpline number');
   }
   console.log('✅ TEST 10 PASSED: Emergency response & helpline provided.\n');

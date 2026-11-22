@@ -158,7 +158,7 @@ async function runLanguageToggleTests() {
   voiceAgent.setLanguage('en');
   const sosEn = await voiceAgent.processUserInput('Medical emergency need help');
   assert(
-    sosEn.spokenResponse.includes('108') && sosEn.spokenResponse.includes('07314624692') && sosEn.navigateUrl === '/patient/help',
+    sosEn.spokenResponse.includes('108') && sosEn.spokenResponse.includes('08047291536') && sosEn.navigateUrl === '/patient/help',
     'Test 8b: English SOS alert returns 108 helpline and navigation',
     sosEn.spokenResponse
   );

@@ -94,7 +94,7 @@ HealthSure replaces rigid, static chatbots with a **context-aware, turn-based Ag
 
 5. **Heuristic Emergency SOS Triage:**
    - Detects acute medical red flags (*heart attack*, *accident*, *chest pain*, *severe bleeding*, *shortness of breath*).
-   - Immediately bypasses administrative scheduling and triggers priority 108 Emergency SOS guidance, PHC emergency room routing, and 24x7 helpline connections (`07314624692`).
+   - Immediately bypasses administrative scheduling and triggers priority 108 Emergency SOS guidance, PHC emergency room routing, and 24x7 helpline connections (`08047291536`).
 
 6. **Dual Synthesis & Browser Fallback (`voicePipelineService`):**
    - Synthesizes responses using Deepgram Aura (`aura-luna-en` for warm Hinglish cadence, `aura-asteria-en` for English).
@@ -119,7 +119,7 @@ HealthSure operates seamlessly across both high-bandwidth modern web browsers an
 
 ### Flow B: Cloud IVR Telephony for 2G / Basic Phones (Zero Internet)
 ```
-1. Patient on ₹800 basic phone dials toll-free hotline: +91 09513886363.
+1. Patient on ₹800 basic phone dials toll-free hotline: +91 08047291536.
 2. Cloud IVR telephony server answers with bilingual voice prompts.
 3. Patient presses key or speaks: 1 for Doctor Appointment, 2 for Teleconsultation, 3 for Emergency SOS.
 4. Telephony webhook queries HealthSure backend REST API in real time.
@@ -144,7 +144,7 @@ HealthSure operates seamlessly across both high-bandwidth modern web browsers an
 
 ## 📋 4. Assumptions Made
 
-1. **Device & Network Heterogeneity:** Assumed rural patients have varying degrees of technology access. Smartphone users use the Web Voice Assistant; non-smartphone users rely on the Cloud IVR phone hotline (`+91 09513886363`).
+1. **Device & Network Heterogeneity:** Assumed rural patients have varying degrees of technology access. Smartphone users use the Web Voice Assistant; non-smartphone users rely on the Cloud IVR phone hotline (`+91 08047291536`).
 2. **Linguistic Code-Switching:** Assumed Indian citizens predominantly speak colloquial Hinglish rather than textbook formal Hindi; the speech recognition and agent logic are tuned for mixed-language vocabulary.
 3. **Clinical Mutation Safety:** Assumed that healthcare bookings and cancellations have real medical consequences, necessitating strict affirmative confirmation gates to prevent conversational hallucination.
 4. **Three-Tier Healthcare Hierarchy:** Assumed adherence to the Indian public healthcare structure: Sub-Centre $\rightarrow$ Primary Health Centre (PHC) / Community Health Centre (CHC) $\rightarrow$ Sub-District & District Hospital.
@@ -159,7 +159,7 @@ HealthSure operates seamlessly across both high-bandwidth modern web browsers an
 | :--- | :---: | :--- |
 | **Problem Statement Alignment** | **High Impact** | Directly targets the 79.5% CHC specialist deficit, eliminates catastrophic travel costs, prevents medicine stockouts, and replaces lost paper slips. |
 | **Logical Decision Making & Agent Logic** | **High Impact** | 24-intent context-aware state machine, date/time normalization, multi-turn pronoun memory, and strict affirmative mutation gates. |
-| **Practical & Real-World Usability** | **High Impact** | Dual-channel access: Web Voice Assistant for smartphones + Zero-Internet Cloud IVR (`09513886363`) for basic phones. |
+| **Practical & Real-World Usability** | **High Impact** | Dual-channel access: Web Voice Assistant for smartphones + Zero-Internet Cloud IVR (`08047291536`) for basic phones. |
 | **Security & Safety** | **Medium Impact** | Zero client-side API secrets, JWT Bearer token authentication, role-based access control (RBAC), Zod schema validation, and affirmative booking gates. |
 | **Code Quality & Architecture** | **Medium Impact** | Decoupled TypeScript architecture, modular service layer (`services/`, `controllers/`, `components/`), clean Oxlint passes, and strict single-branch repository. |
 | **Efficiency & Performance** | **Medium Impact** | Turn-based audio model avoids heavy WebSocket overhead, sub-1.4s voice latency, and lightweight repository size (< 7 MB total). |
@@ -172,7 +172,7 @@ HealthSure operates seamlessly across both high-bandwidth modern web browsers an
 
 - **Production Patient Web Portal:** [https://healthsurerural.vercel.app](https://healthsurerural.vercel.app) *(Domain: [https://healthsurerural.vercel.com](https://healthsurerural.vercel.com))*
 - **Doctor & Administrative Desk:** [https://healthsurerural.vercel.app/admin](https://healthsurerural.vercel.app/admin) *(Domain: [https://healthsurerural.vercel.com/admin](https://healthsurerural.vercel.com/admin))*
-- **Toll-Free Cloud IVR Hotline:** `+91 09513886363` *(PIN: `9214-3058-11`)*
+- **Toll-Free Cloud IVR Hotline:** `+91 08047291536` *(PIN: `9214-3058-11`)*
 - **YouTube Walkthrough Video:** [https://youtu.be/GiW4A_d7ywo](https://youtu.be/GiW4A_d7ywo)
 
 ---

@@ -64,7 +64,7 @@ export function buildSlide6() {
     { text: "• Admin/Doctor Portal: ", options: { bold: true, fontSize: 9, color: C.navy } },
     { text: "https://healthsurerural.vercel.app/admin\n", options: { fontSize: 8.5, color: C.blue } },
     { text: "• Cloud IVR Hotline: ", options: { bold: true, fontSize: 9, color: C.navy } },
-    { text: "+91 09513886363  (PIN: 9214-3058-11)\n", options: { bold: true, fontSize: 9, color: C.tealPrimary } },
+    { text: "+91 08047291536  (PIN: 9214-3058-11)\n", options: { bold: true, fontSize: 9, color: C.tealPrimary } },
     { text: "• Test Credentials: ", options: { bold: true, fontSize: 9, color: C.navy } },
     { text: "priya@example.com / demo1234", options: { fontSize: 9, color: C.slate } }
   ], {

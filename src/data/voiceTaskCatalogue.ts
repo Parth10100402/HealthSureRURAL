@@ -5992,7 +5992,7 @@ export const VOICE_TASK_CATALOGUE: VoiceTaskScenario[] = [
     "id": "T495",
     "category": "General Healthcare Assistance & Voice Conversation",
     "categoryIndex": 10,
-    "utterance": "Call HealthSure support desk 07314624692.",
+    "utterance": "Call HealthSure support desk 08047291536.",
     "language": "en",
     "expectedIntent": "GENERAL_ASSISTANCE",
     "expectedEntities": {},

@@ -27,7 +27,7 @@ export function buildSlide10() {
       color: C.green,
       details: [
         "Live field pilot across 5 rural PHCs in Ratnagiri & Pune districts.",
-        "Rollout of 09513886363 Cloud IVR hotline to 1,000+ rural patients.",
+        "Rollout of 08047291536 Cloud IVR hotline to 1,000+ rural patients.",
         "ASHA worker training for assisted patient onboarding."
       ]
     },

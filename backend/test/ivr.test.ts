@@ -89,10 +89,10 @@ async function runIvrTests() {
       }),
     });
     const dtmf2Data = (await dtmf2Res.json()) as any;
-    test('4. DTMF 2 (Care Executive Transfer) routes call to 07314624692',
+    test('4. DTMF 2 (Care Executive Transfer) routes call to 08047291536',
       dtmf2Data.success === true &&
       dtmf2Data.action === 'dial' &&
-      dtmf2Data.dialNumber.includes('07314624692')
+      dtmf2Data.dialNumber.includes('08047291536')
     );
 
     // 5. Caller Presses '3' (Emergency SOS Services)

@@ -121,7 +121,7 @@ export function buildSlide5() {
   s.addText([
     { text: "LIVE DEPLOYMENT ENDPOINTS:\n", options: { bold: true, fontSize: 9.5, color: C.tealDark } },
     { text: "• Web Portal: https://healthsurerural.vercel.app (or healthsurerural.vercel.com)\n", options: { fontSize: 8.5, color: C.navy } },
-    { text: "• IVR Hotline: +91 09513886363  (PIN: 9214-3058-11)", options: { bold: true, fontSize: 8.5, color: C.tealPrimary } }
+    { text: "• IVR Hotline: +91 08047291536  (PIN: 9214-3058-11)", options: { bold: true, fontSize: 8.5, color: C.tealPrimary } }
   ], {
     x: 7.9, y: 5.8, w: 4.5, h: 0.85,
     valign: "middle"

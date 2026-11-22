@@ -224,7 +224,7 @@ export class VoiceAgentService {
     }
 
     // 6c. General Healthcare Assistance & Platform Knowledge
-    if (/\b(healthsure kya hai|what is healthsure|how to book|appointment kaise book|benefits of specialist|rural healthcare benefits|ayushman bharat|helpline|support desk|07314624692|human support|simpler words|wrong date|galat date)\b/i.test(lower)) {
+    if (/\b(healthsure kya hai|what is healthsure|how to book|appointment kaise book|benefits of specialist|rural healthcare benefits|ayushman bharat|helpline|support desk|08047291536|human support|simpler words|wrong date|galat date)\b/i.test(lower)) {
       return this.handleGeneralHealthcareHelp(lower);
     }
 
@@ -451,10 +451,10 @@ export class VoiceAgentService {
       spoken = this.language === 'hi'
         ? 'Appointment book karne ke liye aap bol sakte hain: "Friday ko Dr. Ananya ke saath appointment book karo", ya screen par date aur slot select karke confirm karein.'
         : 'To book an appointment, say: "Book appointment with Dr. Ananya on Friday", or select your preferred date and slot on screen.';
-    } else if (lower.includes('executive') || lower.includes('support desk') || lower.includes('07314624692') || lower.includes('human support') || lower.includes('helpline')) {
+    } else if (lower.includes('executive') || lower.includes('support desk') || lower.includes('08047291536') || lower.includes('human support') || lower.includes('helpline')) {
       spoken = this.language === 'hi'
-        ? 'HealthSure support desk helpline number +91 07314624692 hai. Hamare executive subah 8 baje se shaam 8 baje tak sahayata ke liye uplabdh hain.'
-        : 'The HealthSure support desk helpline is +91 07314624692, available 8 AM to 8 PM daily for patient support.';
+        ? 'HealthSure support desk helpline number +91 08047291536 hai. Hamare executive subah 8 baje se shaam 8 baje tak sahayata ke liye uplabdh hain.'
+        : 'The HealthSure support desk helpline is +91 08047291536, available 8 AM to 8 PM daily for patient support.';
     } else if (lower.includes('abha') || lower.includes('card')) {
       spoken = this.language === 'hi'
         ? 'ABHA (Ayushman Bharat Health Account) aapki 14-digit digital health ID hai jisse aapke saare prescriptions aur lab reports surakshit link rehte hain.'
@@ -559,8 +559,8 @@ export class VoiceAgentService {
   private handleEmergency(): { intent: string; spokenResponse: string; navigateUrl?: string; state: VoiceConversationState } {
     this.state.intent = 'EMERGENCY_SOS';
     const resp = this.language === 'hi'
-      ? 'Emergency alert! Yadi aapko turant chikitsa sahayata chahiye toh 108 dial karein ya nazdeeki PHC emergency ward jayein. HealthSure 24x7 helpline 07314624692 par bhi call kar sakte hain.'
-      : 'Emergency alert! If you need urgent medical care, please dial 108 immediately or visit your nearest PHC emergency room. HealthSure 24x7 helpline is 07314624692.';
+      ? 'Emergency alert! Yadi aapko turant chikitsa sahayata chahiye toh 108 dial karein ya nazdeeki PHC emergency ward jayein. HealthSure 24x7 helpline 08047291536 par bhi call kar sakte hain.'
+      : 'Emergency alert! If you need urgent medical care, please dial 108 immediately or visit your nearest PHC emergency room. HealthSure 24x7 helpline is 08047291536.';
     this.recordAgentResponse(resp);
     return { intent: 'EMERGENCY_SOS', spokenResponse: resp, navigateUrl: '/patient/help', state: this.getState() };
   }

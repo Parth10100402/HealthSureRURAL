@@ -339,9 +339,9 @@ async function runCompleteSystemAudit() {
 
     const ivrConfigRes = await fetch(`${API_BASE}/ivr/config`);
     const ivrConfig = (await ivrConfigRes.json()) as any;
-    test('IVR Configuration: Returns helpline +91 09513886363 and operational guidance',
+    test('IVR Configuration: Returns helpline +91 08047291536 and operational guidance',
       ivrConfig.success === true &&
-      ivrConfig.helplineNumber.includes('09513886363')
+      ivrConfig.helplineNumber.includes('08047291536')
     );
 
     const callSid = `call-audit-${Date.now()}`;
@@ -373,10 +373,10 @@ async function runCompleteSystemAudit() {
       body: JSON.stringify({ CallSid: callSid, Digits: '2', From: '+91 9876543210' }),
     });
     const ivrDtmf2 = (await ivrDtmf2Res.json()) as any;
-    test('IVR DTMF 2: Bridges caller to HealthSure Executive hotline (+91 07314624692)',
+    test('IVR DTMF 2: Bridges caller to HealthSure Executive hotline (+91 08047291536)',
       ivrDtmf2.success === true &&
       ivrDtmf2.action === 'dial' &&
-      ivrDtmf2.dialNumber.includes('07314624692')
+      ivrDtmf2.dialNumber.includes('08047291536')
     );
 
     const ivrDtmf3Res = await fetch(`${API_BASE}/ivr/dtmf`, {
